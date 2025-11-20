@@ -1,3 +1,4 @@
+// File: `src/handTracker.js`
 import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
 let handLandmarker = undefined;
@@ -5,6 +6,8 @@ let lastWristX = 0;
 let lastWristY = 0;
 let isThrowing = false;
 let cooldown = 0;
+const HISTORY_LENGTH = 5;
+let positionHistory = [];
 
 let onThrow = null;
 let onLandmarks = null;
@@ -38,22 +41,36 @@ export function detectThrow(videoInput) {
     }
 
     const lm = result.landmarks[0];
-    const wrist = lm[0];
+    const rawWrist = lm[0];
     const indexMcp = lm[5];
     const pinkyMcp = lm[17];
     const knuckleMid = { x: (indexMcp.x + pinkyMcp.x) / 2, y: (indexMcp.y + pinkyMcp.y) / 2 };
     const elbow = {
-        x: wrist.x + (wrist.x - knuckleMid.x) * 0.6,
-        y: wrist.y + (wrist.y - knuckleMid.y) * 0.6,
+        x: rawWrist.x + (rawWrist.x - knuckleMid.x) * 0.6,
+        y: rawWrist.y + (rawWrist.y - knuckleMid.y) * 0.6,
+    };
+
+    // Update position history and compute averaged wrist for smoothing
+    positionHistory.push({ x: rawWrist.x, y: rawWrist.y });
+    if (positionHistory.length > HISTORY_LENGTH) positionHistory.shift();
+    let avgX = 0, avgY = 0;
+    for (let pos of positionHistory) {
+        avgX += pos.x;
+        avgY += pos.y;
+    }
+    const wrist = {
+        x: avgX / positionHistory.length,
+        y: avgY / positionHistory.length
     };
 
     const vx = wrist.x - lastWristX;
     const vy = wrist.y - lastWristY;
     const speed = Math.hypot(vx, vy);
 
-    if (speed > 0.1 && !isThrowing && cooldown <= 0) {
+    // Only throw if moving downward (vy > 0) and speed threshold met
+    if (speed > 0.05 && vy > 0 && !isThrowing && cooldown <= 0) {
         cooldown = 10;
-        const power = speed * 300;
+        const power = speed * 400;
         if (onThrow) onThrow(power, wrist);
         isThrowing = true;
     }

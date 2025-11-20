@@ -1,6 +1,7 @@
+// File: `src/Scene/gameScene.js`
 import { createHandLandmarker, detectThrow, setOnThrow, setOnLandmarks } from '../handTracker.js';
 
-var count = 0;
+var cooldown = 10;
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -52,6 +53,13 @@ export default class GameScene extends Phaser.Scene {
 
         // controls
         this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+        this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+
+        this.chargeBarBg = this.add.rectangle(W - 50, H - 20, 100, 20, 0x3333333).setOrigin(1, 0.5);
+        this.chargeBar = this.add.rectangle(W - 100, H - 20, 0, 16, 0x00ff00).setOrigin(0)
+        this.charge = 0;
+        this.isCharging = false;
 
         // webcam video element (existing in DOM)
         this.video = document.getElementById('webcam');
@@ -78,41 +86,70 @@ export default class GameScene extends Phaser.Scene {
             pointerEvents: 'none'
         });
 
-        // hand landmarker setup
-        createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
+        // hand landmarker setup (only if using camera)
+        if (window.useCamera) {
+            createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
+            setOnThrow((power, wrist) => {
+                if (this.qKey.isDown) {
+                    this.charge = Math.min(this.charge + ((0.1) * power)/20, 1); // Increment on throw action
+                    this.updateChargeBar();
+                } else {
+                    this.throwSnowball(power, wrist);
+                }
+            });
+            this.latest = null;
+            setOnLandmarks((data) => {
+                this.latest = data;
+            });
+        } else {
+            // space key for shooting or charging
+            this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+            this.spaceKey.on('down', () => {
+                if (this.qKey.isDown) {
+                    // Charge instead of throw
+                    this.charge = Math.min(this.charge + 0.1, 1);
+                    this.updateChargeBar();
+                } else if (cooldown <= 0) {
+                    cooldown = 40;
+                    this.throwSnowball(20, { x: 0.5, y: 0.5 });
+                }
+            });
 
-        // throw handler (existing)
-        setOnThrow((power, wrist) => this.throwSnowball(power, wrist));
+        }
 
-        // landmarks callback: keep latest positions
-        this.latest = null;
-        setOnLandmarks((data) => {
-            this.latest = data; // may be null when no hand
-        });
-
-        // graphics for overlays
-        this.overlay = this.add.graphics();
-        this.overlay.setDepth(1000);
-        this.wasd = this.input.keyboard.addKeys('W,A,S,D');
+        // graphics for overlays (only if using camera)
+        if (window.useCamera) {
+            this.overlay = this.add.graphics();
+            this.overlay.setDepth(1000);
+        }
     }
 
     throwSnowball(power, wrist) {
+        const multiplier = 1 + this.charge * 4;
         const px = this.player.x + this.player.width / 2;
         const py = this.player.y + this.player.height / 2;
-        const ball = this.add.circle(px, py, 10, 0x88ccff);
+        const ball = this.add.circle(px, py, 10 * multiplier, 0x88ccff);
         this.physics.add.existing(ball);
         ball.body.setCollideWorldBounds(true);
         ball.body.onWorldBounds = true;
-        const velocity = 200 + power * 5;
+        const velocity = (200 + power * 5)/multiplier;
         ball.body.setVelocity(0, -velocity);
         ball.body.world.on('worldbounds', function(body) {
             if (body.gameObject === ball) {
                 ball.destroy();
             }
         });
+        this.charge = 0;
+        this.updateChargeBar();
+    }
+    updateChargeBar() {
+        const W = this.cameras.main.width;
+        this.chargeBar.width = this.charge * 80;
+        this.chargeBar.x = W - 100;
     }
 
     update() {
+        cooldown--;
         const playerSpeed = 200;
         this.player.body.setVelocity(0);
         // movement input
@@ -148,32 +185,34 @@ export default class GameScene extends Phaser.Scene {
             if (this.player.texture.key !== tex) this.player.setTexture(tex);
         }
 
-        // call detector every N frames
-        if (this.video && this.video.readyState >= 2) {
-            if (count % 3 === 0) {
-                detectThrow(this.video);
-            }
+
+        //charging time
+        this.charge = Math.max(0, this.charge - 0.005);
+        this.updateChargeBar();
+
+        // call detector only if using camera
+        if (window.useCamera && this.video && this.video.readyState >= 2) {
+            detectThrow(this.video);
         }
-        count++;
 
-        // draw overlays for wrist/elbow
-        this.overlay.clear();
-        const W = this.cameras.main.width;
-        const H = this.cameras.main.height;
+        // draw overlays only if using camera
+        if (window.useCamera && this.overlay) {
+            this.overlay.clear();
+            const W = this.cameras.main.width;
+            const H = this.cameras.main.height;
 
-        if (!this.latest) return;
+            if (!this.latest) return;
 
-        const { wrist, elbow } = this.latest;
-        // convert normalized coords to screen
-        const wristX = wrist.x * W;
-        const wristY = wrist.y * H;
-        const elbowX = elbow.x * W;
-        const elbowY = elbow.y * H;
+            const { wrist, elbow } = this.latest;
+            const wristX = wrist.x * W;
+            const wristY = wrist.y * H;
+            const elbowX = elbow.x * W;
+            const elbowY = elbow.y * H;
 
-        // boxes
-        this.overlay.lineStyle(2, 0xffff00);
-        this.overlay.strokeRect(wristX - 10, wristY - 10, 20, 20); // wrist box
-        this.overlay.lineStyle(2, 0xff00ff);
-        this.overlay.strokeRect(elbowX - 10, elbowY - 10, 20, 20); // elbow box
+            this.overlay.lineStyle(2, 0xffff00);
+            this.overlay.strokeRect(wristX - 10, wristY - 10, 20, 20);
+            this.overlay.lineStyle(2, 0xff00ff);
+            this.overlay.strokeRect(elbowX - 10, elbowY - 10, 20, 20);
+        }
     }
 }
