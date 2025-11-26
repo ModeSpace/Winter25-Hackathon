@@ -13,6 +13,8 @@ export default class GameScene extends Phaser.Scene {
             const idx = String(i).padStart(3, '0');
             this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
         }
+        this.load.image('snowball1', 'Assests/snowball/snowball-1.png');
+        this.load.image('snowball2', 'Assests/snowball/snowball-2.png');
     }
 
     create() {
@@ -161,7 +163,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     spawnSnowball(x, y, multiplier, velocity) {
-        const ball = this.add.circle(x, y, 10 * multiplier, 0x88ccff);
+        const ball = this.add.image(x, y, 'snowball1').setScale(multiplier);
         this.physics.add.existing(ball);
         ball.body.setCollideWorldBounds(true);
         ball.body.onWorldBounds = true;
@@ -174,7 +176,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     spawnOpponentSnowball({ x, y, multiplier, velocity }) {
-        const ball = this.add.circle(x, y, 10 * multiplier, 0xff8888); // Different color
+        const ball = this.add.image(x,y,'snowball2').setScale(multiplier); // Different color
         this.physics.add.existing(ball);
         ball.body.setCollideWorldBounds(true);
         ball.body.onWorldBounds = true;

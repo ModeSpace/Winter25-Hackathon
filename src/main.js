@@ -3,6 +3,10 @@ import TitleScene from "./Scene/titleScene.js";
 import SettingsScene from "./Scene/settingsScene.js";
 
 const config = {
+    type: Phaser.CANVAS,
+    pixelArt: true,
+    antialias: false,
+    roundPixels: true,
     type: Phaser.AUTO,
     width: 800,
     height: 600,
