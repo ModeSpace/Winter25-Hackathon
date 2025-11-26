@@ -1,5 +1,5 @@
-// File: `src/Scene/gameScene.js`
 import { createHandLandmarker, detectThrow, setOnThrow, setOnLandmarks } from '../handTracker.js';
+import { Network } from '../network.js';
 
 var cooldown = 10;
 
@@ -9,8 +9,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        // Load individual tile images from Assests/first-character as separate frames.
-        // Files are named tile000.png .. tile015.png in the repo.
         for (let i = 0; i <= 15; i++) {
             const idx = String(i).padStart(3, '0');
             this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
@@ -22,12 +20,6 @@ export default class GameScene extends Phaser.Scene {
         const H = this.cameras.main.height;
         const SIZE = 50;
 
-        // animations for player (assumption: tiles are arranged as 4 frames per direction)
-        // mapping assumption (common layout):
-        // 0-3   : walk down
-        // 4-7   : walk left
-        // 8-11  : walk right
-        // 12-15 : walk up
         const makeFrames = (start, end) => {
             const out = [];
             for (let i = start; i <= end; i++) out.push({ key: `player${i}` });
@@ -38,75 +30,62 @@ export default class GameScene extends Phaser.Scene {
         this.anims.create({ key: 'walk-right', frames: makeFrames(4, 7), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'walk-up', frames: makeFrames(8, 11), frameRate: 8, repeat: -1 });
 
-        // player square
-        const startX = W / 2 - SIZE / 2;
-        const startY = H / 2 - SIZE / 2;
-        // Create the player using the first frame as the initial texture.
-        this.player = this.add.sprite(startX, startY, 'player0');
-        // Use top-left origin so positioning and body sizes align with earlier code that used x/y offsets.
-        this.player.setOrigin(0, 0);
-        // track last facing direction for idle frame
-        this.lastDir = 'down';
-        this.physics.add.existing(this.player);
-        this.player.body.setCollideWorldBounds(true);
-        this.player.body.setSize(SIZE, SIZE);
+        // Player setup
+        if (window.isMultiplayer) {
+            const player1Y = H * 0.8;
+            const player2Y = H * 0.2;
+            // Host is player1 (bottom), Client is player2 (top)
+            const myY = window.isHost ? player1Y : player2Y;
+            const opponentY = window.isHost ? player2Y : player1Y;
 
-        // controls
+            this.player = this.createPlayer(W / 2, myY);
+            this.opponent = this.createPlayer(W / 2, opponentY);
+            this.setupNetwork();
+        } else {
+            this.player = this.createPlayer(W / 2, H / 2);
+        }
+
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
 
-        this.chargeBarBg = this.add.rectangle(W - 50, H - 20, 100, 20, 0x3333333).setOrigin(1, 0.5);
-        this.chargeBar = this.add.rectangle(W - 100, H - 20, 0, 16, 0x00ff00).setOrigin(0)
+        this.chargeBarBg = this.add.rectangle(W - 100, H - 30, 84, 20, 0x333333).setOrigin(0, 0.5);
+        this.chargeBar = this.add.rectangle(W - 98, H - 30, 0, 16, 0x00ff00).setOrigin(0, 0.5);
         this.charge = 0;
-        this.isCharging = false;
 
-        // webcam video element (existing in DOM)
         this.video = document.getElementById('webcam');
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-            .then((stream) => {
-                this.video.srcObject = stream;
-                return this.video.play();
-            })
-            .catch((err) => console.warn('Webcam error:', err));
-
-        // style video to be a small camera in top-right corner (DOM overlay)
-        const miniW = 160;
-        const miniH = 120;
-        Object.assign(this.video.style, {
-            position: 'absolute',
-            width: `${miniW}px`,
-            height: `${miniH}px`,
-            top: '10px',
-            right: '10px',
-            border: '3px solid rgba(255,255,255,0.9)',
-            borderRadius: '6px',
-            zIndex: 9999,
-            objectFit: 'cover',
-            pointerEvents: 'none'
-        });
-
-        // hand landmarker setup (only if using camera)
         if (window.useCamera) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+                .then((stream) => {
+                    this.video.srcObject = stream;
+                    return this.video.play();
+                })
+                .catch((err) => console.warn('Webcam error:', err));
+
+            const miniW = 160;
+            const miniH = 120;
+            Object.assign(this.video.style, {
+                position: 'absolute', width: `${miniW}px`, height: `${miniH}px`,
+                top: '10px', right: '10px', border: '3px solid rgba(255,255,255,0.9)',
+                borderRadius: '6px', zIndex: 9999, objectFit: 'cover', pointerEvents: 'none'
+            });
+
             createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
             setOnThrow((power, wrist) => {
                 if (this.qKey.isDown) {
-                    this.charge = Math.min(this.charge + ((0.1) * power)/20, 1); // Increment on throw action
+                    this.charge = Math.min(this.charge + ((0.1) * power) / 20, 1);
                     this.updateChargeBar();
                 } else {
                     this.throwSnowball(power, wrist);
                 }
             });
             this.latest = null;
-            setOnLandmarks((data) => {
-                this.latest = data;
-            });
+            setOnLandmarks((data) => { this.latest = data; });
+            this.overlay = this.add.graphics({ depth: 1000 });
         } else {
-            // space key for shooting or charging
             this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
             this.spaceKey.on('down', () => {
                 if (this.qKey.isDown) {
-                    // Charge instead of throw
                     this.charge = Math.min(this.charge + 0.1, 1);
                     this.updateChargeBar();
                 } else if (cooldown <= 0) {
@@ -114,105 +93,153 @@ export default class GameScene extends Phaser.Scene {
                     this.throwSnowball(20, { x: 0.5, y: 0.5 });
                 }
             });
-
         }
+    }
 
-        // graphics for overlays (only if using camera)
-        if (window.useCamera) {
-            this.overlay = this.add.graphics();
-            this.overlay.setDepth(1000);
-        }
+    createPlayer(x, y) {
+        const player = this.add.sprite(x, y, 'player0');
+        player.setOrigin(0.5, 0.5);
+        this.physics.add.existing(player);
+        player.body.setCollideWorldBounds(true);
+        player.body.setSize(50, 50);
+        player.lastDir = 'down';
+        return player;
+    }
+
+    setupNetwork() {
+        Network.setDataHandler((data) => {
+            if (!this.opponent) return;
+
+            switch (data.type) {
+                case 'move':
+                    this.opponent.setPosition(data.x, data.y);
+                    this.updatePlayerAnimation(this.opponent, data.velX, data.velY, data.lastDir);
+                    break;
+                case 'throw':
+                    this.spawnOpponentSnowball(data);
+                    break;
+            }
+        });
+
+        // Send our state periodically
+        this.time.addEvent({
+            delay: 100, // 10 times per second
+            callback: () => {
+                Network.send({
+                    type: 'move',
+                    x: this.player.x,
+                    y: this.player.y,
+                    velX: this.player.body.velocity.x,
+                    velY: this.player.body.velocity.y,
+                    lastDir: this.player.lastDir
+                });
+            },
+            loop: true
+        });
     }
 
     throwSnowball(power, wrist) {
         const multiplier = 1 + this.charge * 4;
-        const px = this.player.x + this.player.width / 2;
-        const py = this.player.y + this.player.height / 2;
-        const ball = this.add.circle(px, py, 10 * multiplier, 0x88ccff);
-        this.physics.add.existing(ball);
-        ball.body.setCollideWorldBounds(true);
-        ball.body.onWorldBounds = true;
-        const velocity = (200 + power * 5)/multiplier;
-        ball.body.setVelocity(0, -velocity);
-        ball.body.world.on('worldbounds', function(body) {
-            if (body.gameObject === ball) {
-                ball.destroy();
-            }
-        });
+        const px = this.player.x;
+        const py = this.player.y;
+        const velocity = (200 + power * 5) / multiplier;
+
+        this.spawnSnowball(px, py, multiplier, velocity);
+
+        if (window.isMultiplayer) {
+            Network.send({
+                type: 'throw',
+                x: px,
+                y: py,
+                multiplier: multiplier,
+                velocity: velocity
+            });
+        }
+
         this.charge = 0;
         this.updateChargeBar();
     }
+
+    spawnSnowball(x, y, multiplier, velocity) {
+        const ball = this.add.circle(x, y, 10 * multiplier, 0x88ccff);
+        this.physics.add.existing(ball);
+        ball.body.setCollideWorldBounds(true);
+        ball.body.onWorldBounds = true;
+        // In multiplayer, host throws up, client throws down
+        const direction = (window.isMultiplayer && !window.isHost) ? 1 : -1;
+        ball.body.setVelocity(0, velocity * direction);
+        ball.body.world.on('worldbounds', (body) => {
+            if (body.gameObject === ball) ball.destroy();
+        });
+    }
+
+    spawnOpponentSnowball({ x, y, multiplier, velocity }) {
+        const ball = this.add.circle(x, y, 10 * multiplier, 0xff8888); // Different color
+        this.physics.add.existing(ball);
+        ball.body.setCollideWorldBounds(true);
+        ball.body.onWorldBounds = true;
+        // Invert direction for opponent's throw
+        const direction = window.isHost ? 1 : -1;
+        ball.body.setVelocity(0, velocity * direction);
+        ball.body.world.on('worldbounds', (body) => {
+            if (body.gameObject === ball) ball.destroy();
+        });
+    }
+
     updateChargeBar() {
-        const W = this.cameras.main.width;
         this.chargeBar.width = this.charge * 80;
-        this.chargeBar.x = W - 100;
+    }
+
+    handlePlayerInput() {
+        const playerSpeed = 200;
+        this.player.body.setVelocity(0);
+        if (this.cursors.left.isDown || this.wasd.A.isDown) this.player.body.setVelocityX(-playerSpeed);
+        if (this.cursors.right.isDown || this.wasd.D.isDown) this.player.body.setVelocityX(playerSpeed);
+        if (this.cursors.up.isDown || this.wasd.W.isDown) this.player.body.setVelocityY(-playerSpeed);
+        if (this.cursors.down.isDown || this.wasd.S.isDown) this.player.body.setVelocityY(playerSpeed);
+    }
+
+    updatePlayerAnimation(player, velX, velY, lastDir) {
+        if (velX < 0) {
+            if (player.anims.currentAnim?.key !== 'walk-left') player.anims.play('walk-left', true);
+            player.lastDir = 'left';
+        } else if (velX > 0) {
+            if (player.anims.currentAnim?.key !== 'walk-right') player.anims.play('walk-right', true);
+            player.lastDir = 'right';
+        } else if (velY < 0) {
+            if (player.anims.currentAnim?.key !== 'walk-up') player.anims.play('walk-up', true);
+            player.lastDir = 'up';
+        } else if (velY > 0) {
+            if (player.anims.currentAnim?.key !== 'walk-down') player.anims.play('walk-down', true);
+            player.lastDir = 'down';
+        } else {
+            if (player.anims.isPlaying) player.anims.stop();
+            const idleMap = { down: 'player0', left: 'player12', right: 'player4', up: 'player8' };
+            const tex = idleMap[lastDir] || 'player0';
+            if (player.texture.key !== tex) player.setTexture(tex);
+        }
     }
 
     update() {
         cooldown--;
-        const playerSpeed = 200;
-        this.player.body.setVelocity(0);
-        // movement input
-        if (this.cursors.left.isDown)        this.player.body.setVelocityX(-playerSpeed);
-        if (this.cursors.right.isDown)       this.player.body.setVelocityX(playerSpeed);
-        if (this.cursors.up.isDown)          this.player.body.setVelocityY(-playerSpeed);
-        if (this.cursors.down.isDown)        this.player.body.setVelocityY(playerSpeed);
-        if (this.wasd.A.isDown)              this.player.body.setVelocityX(-playerSpeed);
-        if (this.wasd.D.isDown)              this.player.body.setVelocityX(playerSpeed);
-        if (this.wasd.W.isDown)              this.player.body.setVelocityY(-playerSpeed);
-        if (this.wasd.S.isDown)              this.player.body.setVelocityY(playerSpeed);
+        this.handlePlayerInput();
+        this.updatePlayerAnimation(this.player, this.player.body.velocity.x, this.player.body.velocity.y, this.player.lastDir);
 
-        // choose animation based on velocity (horizontal priority for diagonals)
-        const vx = this.player.body.velocity.x;
-        const vy = this.player.body.velocity.y;
-        if (vx < 0) {
-            if (this.player.anims.currentAnim?.key !== 'walk-left') this.player.anims.play('walk-left', true);
-            this.lastDir = 'left';
-        } else if (vx > 0) {
-            if (this.player.anims.currentAnim?.key !== 'walk-right') this.player.anims.play('walk-right', true);
-            this.lastDir = 'right';
-        } else if (vy < 0) {
-            if (this.player.anims.currentAnim?.key !== 'walk-up') this.player.anims.play('walk-up', true);
-            this.lastDir = 'up';
-        } else if (vy > 0) {
-            if (this.player.anims.currentAnim?.key !== 'walk-down') this.player.anims.play('walk-down', true);
-            this.lastDir = 'down';
-        } else {
-            // idle: stop anim and show first frame of last direction
-            if (this.player.anims.isPlaying) this.player.anims.stop();
-            const idleMap = { down: 'player0', left: 'player12', right: 'player4', up: 'player8' };
-            const tex = idleMap[this.lastDir] || 'player0';
-            if (this.player.texture.key !== tex) this.player.setTexture(tex);
-        }
-
-
-        //charging time
         this.charge = Math.max(0, this.charge - 0.005);
         this.updateChargeBar();
 
-        // call detector only if using camera
         if (window.useCamera && this.video && this.video.readyState >= 2) {
             detectThrow(this.video);
-        }
-
-        // draw overlays only if using camera
-        if (window.useCamera && this.overlay) {
-            this.overlay.clear();
-            const W = this.cameras.main.width;
-            const H = this.cameras.main.height;
-
-            if (!this.latest) return;
-
-            const { wrist, elbow } = this.latest;
-            const wristX = wrist.x * W;
-            const wristY = wrist.y * H;
-            const elbowX = elbow.x * W;
-            const elbowY = elbow.y * H;
-
-            this.overlay.lineStyle(2, 0xffff00);
-            this.overlay.strokeRect(wristX - 10, wristY - 10, 20, 20);
-            this.overlay.lineStyle(2, 0xff00ff);
-            this.overlay.strokeRect(elbowX - 10, elbowY - 10, 20, 20);
+            if (this.overlay && this.latest) {
+                this.overlay.clear();
+                const W = this.cameras.main.width;
+                const H = this.cameras.main.height;
+                const { wrist, elbow } = this.latest;
+                const wristX = wrist.x * W; const wristY = wrist.y * H;
+                const elbowX = elbow.x * W; const elbowY = elbow.y * H;
+                this.overlay.lineStyle(2, 0xffff00).strokeRect(wristX - 10, wristY - 10, 20, 20);
+                this.overlay.lineStyle(2, 0xff00ff).strokeRect(elbowX - 10, elbowY - 10, 20, 20);
+            }
         }
     }
 }

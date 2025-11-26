@@ -1,0 +1,63 @@
+
+let peer = null;
+let conn = null;
+let onDataCallback = null;
+
+export const Network = {
+    // 1. Initialize as Host
+    hostGame: (onReady) => {
+        const customId = Math.floor(10000 + Math.random() * 90000).toString(); // Generate 5-digit ID
+        peer = new Peer(customId);
+
+        peer.on('open', (id) => {
+            console.log('My Peer ID is: ' + id);
+            if (onReady) onReady(id);
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupConnection();
+        });
+    },
+
+    joinGame: (hostId, onConnected) => {
+        peer = new Peer(); // We still need an ID to exist
+
+        peer.on('open', () => {
+            // Connect to the host
+            conn = peer.connect(hostId);
+
+            conn.on('open', () => {
+                setupConnection();
+                if (onConnected) onConnected();
+            });
+        });
+    },
+
+    // 3. Send data to the other person
+    send: (data) => {
+        if (conn && conn.open) {
+            conn.send(data);
+        }
+    },
+
+    // 4. Listen for data
+    setDataHandler: (callback) => {
+        onDataCallback = callback;
+    },
+
+    isConnected: () => {
+        return conn && conn.open;
+    }
+};
+
+function setupConnection() {
+    conn.on('data', (data) => {
+        if (onDataCallback) onDataCallback(data);
+    });
+
+    conn.on('close', () => {
+        console.log("Connection lost");
+        // Optionally handle disconnects here
+    });
+}
