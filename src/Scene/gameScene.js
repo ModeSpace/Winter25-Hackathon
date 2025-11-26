@@ -21,6 +21,7 @@ export default class GameScene extends Phaser.Scene {
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
         const SIZE = 50;
+        this.mySnowballs = this.physics.add.group();
 
         const makeFrames = (start, end) => {
             const out = [];
@@ -51,9 +52,30 @@ export default class GameScene extends Phaser.Scene {
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
 
+        //Charge bar
         this.chargeBarBg = this.add.rectangle(W - 100, H - 30, 84, 20, 0x333333).setOrigin(0, 0.5);
         this.chargeBar = this.add.rectangle(W - 98, H - 30, 0, 16, 0x00ff00).setOrigin(0, 0.5);
         this.charge = 0;
+
+        //Health bar
+        this.healthBarBg = this.add.rectangle(10, 10, 204, 24, 0x333333).setOrigin(0, 0);
+        this.healthBar = this.add.rectangle(12, 12, 200, 20, 0xff0000).setOrigin(0, 0);
+        this.health = 1;
+
+        if (window.isMultiplayer) {
+            this.physics.add.overlap(this.opponent, this.mySnowballs, (opponent, snowball) => {
+                // When the opponent is hit, we just destroy the snowball on our screen.
+                // The opponent's client will handle its own health reduction.
+                snowball.destroy();
+            }, null, this);
+        }
+
+        this.opponentSnowballs = this.physics.add.group({
+            // These properties are applied to children, but we manually create them
+            // so these are effectively defaults that we don't use.
+            // The important part is that this creates a physics group.
+        });
+        this.physics.add.overlap(this.player, this.opponentSnowballs, this.handlePlayerHit, null, this);
 
         this.video = document.getElementById('webcam');
         if (window.useCamera) {
@@ -157,7 +179,6 @@ export default class GameScene extends Phaser.Scene {
                 velocity: velocity
             });
         }
-
         this.charge = 0;
         this.updateChargeBar();
     }
@@ -173,6 +194,8 @@ export default class GameScene extends Phaser.Scene {
         ball.body.world.on('worldbounds', (body) => {
             if (body.gameObject === ball) ball.destroy();
         });
+        this.mySnowballs.add(ball);
+        ball.intendedVelocityY = velocity * direction;
     }
 
     spawnOpponentSnowball({ x, y, multiplier, velocity }) {
@@ -182,10 +205,23 @@ export default class GameScene extends Phaser.Scene {
         ball.body.onWorldBounds = true;
         // Invert direction for opponent's throw
         const direction = window.isHost ? 1 : -1;
+        ball.intendedVelocityY = velocity * direction;
         ball.body.setVelocity(0, velocity * direction);
         ball.body.world.on('worldbounds', (body) => {
             if (body.gameObject === ball) ball.destroy();
         });
+        this.opponentSnowballs.add(ball);
+    }
+
+    handlePlayerHit(player, snowball) {
+        const damage = snowball.radius / 200; // Damage based on snowball size
+        this.health = Math.max(0, this.health - damage);
+        this.updateHealthBar();
+        snowball.destroy(); // Remove the snowball after collision
+    }
+
+    updateHealthBar() {
+        this.healthBar.width = this.health * 200;
     }
 
     updateChargeBar() {
@@ -227,9 +263,18 @@ export default class GameScene extends Phaser.Scene {
         this.handlePlayerInput();
         this.updatePlayerAnimation(this.player, this.player.body.velocity.x, this.player.body.velocity.y, this.player.lastDir);
 
-        this.charge = Math.max(0, this.charge - 0.005);
+        this.charge = Math.max(0, this.charge - 0.001);
         this.updateChargeBar();
-
+        this.opponentSnowballs.getChildren().forEach(ball => {
+            if (ball.body) {
+                ball.body.setVelocity(0, ball.intendedVelocityY);
+            }
+        });
+        this.mySnowballs.getChildren().forEach(ball => {
+            if (ball.body) {
+                ball.body.setVelocity(0, ball.intendedVelocityY);
+            }
+        });
         if (window.useCamera && this.video && this.video.readyState >= 2) {
             detectThrow(this.video);
             if (this.overlay && this.latest) {
@@ -242,6 +287,10 @@ export default class GameScene extends Phaser.Scene {
                 this.overlay.lineStyle(2, 0xffff00).strokeRect(wristX - 10, wristY - 10, 20, 20);
                 this.overlay.lineStyle(2, 0xff00ff).strokeRect(elbowX - 10, elbowY - 10, 20, 20);
             }
+        }
+        if (this.health < 1) {
+            this.health = Math.min(1, this.health + 0.0001); // Regenerate health slowly
+            this.updateHealthBar();
         }
     }
 }
