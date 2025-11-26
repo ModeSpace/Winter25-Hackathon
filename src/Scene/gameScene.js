@@ -261,7 +261,7 @@ export default class GameScene extends Phaser.Scene {
         this.handlePlayerInput();
         this.updatePlayerAnimation(this.player, this.player.body.velocity.x, this.player.body.velocity.y, this.player.lastDir);
 
-        this.charge = Math.max(0, this.charge - 0.005);
+        this.charge = Math.max(0, this.charge - 0.001);
         this.updateChargeBar();
         this.opponentSnowballs.getChildren().forEach(ball => {
             if (ball.body) {
