@@ -10,7 +10,6 @@ export const Network = {
         peer = new Peer(customId);
 
         peer.on('open', (id) => {
-            console.log('My Peer ID is: ' + id);
             if (onReady) onReady(id);
         });
 

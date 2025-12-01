@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8" />
     <title>Snowball Game</title>
+    <link rel="stylesheet" href="thing.css">
+
     <style>
         body { margin: 0; }
         #game-container { width: 800px; height: 600px; margin: 0 auto; }
@@ -12,12 +14,12 @@
 </head>
 <body>
 <div id="game-container"></div>
+<div class="fontload" style="font-family: 'font',system-ui;">.</div>
 <video id="webcam" autoplay playsinline muted></video>
 
 <!-- Phaser (global) -->
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-
 <!-- app entry (ES module) -->
 <script type="module" src="src/main.js"></script>
 </body>

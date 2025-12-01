@@ -1,0 +1,14 @@
+
+@font-face {
+    font-family: 'font';
+    src: url('Assests/Fonts/HennyPenny-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+.fontload {
+    visibility: hidden;
+    position: absolute;
+    left: -9999px;
+    font-family: 'font', ui-serif;
+}
