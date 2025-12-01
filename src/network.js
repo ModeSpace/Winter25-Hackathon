@@ -2,6 +2,7 @@
 let peer = null;
 let conn = null;
 let onDataCallback = null;
+let onDisconnectCallback = null;
 
 export const Network = {
     // 1. Initialize as Host
@@ -47,7 +48,8 @@ export const Network = {
 
     isConnected: () => {
         return conn && conn.open;
-    }
+    },
+    setDisconnectHandler: (cb) => { onDisconnectCallback = cb; }
 };
 
 function setupConnection() {
@@ -57,6 +59,6 @@ function setupConnection() {
 
     conn.on('close', () => {
         console.log("Connection lost");
-        // Optionally handle disconnects here
+        if (onDisconnectCallback) onDisconnectCallback(); // <-- call handler
     });
 }

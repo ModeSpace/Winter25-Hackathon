@@ -81,7 +81,8 @@ export default class GameScene extends Phaser.Scene {
         this.healthBarBg = this.add.rectangle(10, 10, 204, 24, 0x333333).setOrigin(0, 0);
         this.healthBar = this.add.rectangle(12, 12, 200, 20, 0xff0000).setOrigin(0, 0);
         this.health = 1;
-
+        this.gameOver = false;
+        this.networkMoveEvent = null;
         if (window.isMultiplayer) {
             this.physics.add.overlap(this.opponent, this.mySnowballs, (opponent, snowball) => {
                 // When the opponent is hit, we just destroy the snowball on our screen.
@@ -90,11 +91,7 @@ export default class GameScene extends Phaser.Scene {
             }, null, this);
         }
 
-        this.opponentSnowballs = this.physics.add.group({
-            // These properties are applied to children, but we manually create them
-            // so these are effectively defaults that we don't use.
-            // The important part is that this creates a physics group.
-        });
+        this.opponentSnowballs = this.physics.add.group({});
         this.physics.add.overlap(this.player, this.opponentSnowballs, this.handlePlayerHit, null, this);
 
         this.video = document.getElementById('webcam');
@@ -167,13 +164,39 @@ export default class GameScene extends Phaser.Scene {
                 case 'throw':
                     this.spawnOpponentSnowball(data);
                     break;
+                case 'dead':
+                    if(!this.gameOver) this.endGame(true);
+                    break;
+                case 'rematch_request':
+                    this.opponentRequestedRematch = true;
+                    if (this._playAgainButton) {
+                        this._playAgainButton.setStyle({ backgroundColor: '#00aa00' });
+                        if (this.localRequestedRematch) {
+                            Network.send({ type: 'rematch_accept' });
+                            this.resetForRematch();
+                        }
+                    } else {
+                        // if no local UI yet, keep the flag; UI will reflect when created
+                    }
+                    break;
+                case 'rematch_accept':
+                    // Opponent accepted -> restart the scene
+                    this.resetForRematch();
+                    break;
+                case 'return_to_menu':
+                    this.endGame(false);
+                    break;
             }
+        });
+        Network.setDisconnectHandler(() => {
+            this.onOpponentDisconnected();
         });
 
         // Send our state periodically
         this.time.addEvent({
             delay: 100, // 10 times per second
             callback: () => {
+                if (this.gameOver) return;
                 Network.send({
                     type: 'move',
                     x: this.player.x,
@@ -185,9 +208,11 @@ export default class GameScene extends Phaser.Scene {
             },
             loop: true
         });
+
     }
 
     throwSnowball(power, wrist) {
+        if(this.gameOver) return;
         const multiplier = 1 + this.charge * 4;
         const px = this.player.x;
         const py = this.player.y;
@@ -242,10 +267,16 @@ export default class GameScene extends Phaser.Scene {
 
     handlePlayerHit(player, snowball) {
         const damage = snowball.radius / 50; // Damage based on snowball size
-        console.log('Hit! Damage:', damage);
-        this.health = Math.max(0, this.health - damage);
+        this.health = this.health - 1;
         this.updateHealthBar();
         snowball.destroy(); // Remove the snowball after collision
+        if (this.health <= 0 && !this.gameOver) {
+            this.gameOver = true;
+            if (window.isMultiplayer) {
+                Network.send({type: 'dead'});
+            }
+            this.endGame(false);
+        }
     }
 
     updateHealthBar() {
@@ -259,6 +290,10 @@ export default class GameScene extends Phaser.Scene {
     handlePlayerInput() {
         const playerSpeed = 200;
         this.player.body.setVelocity(0);
+        if (this.gameOver) {
+            this.player.body.setVelocity(0);
+            return;
+        }
         if (this.cursors.left.isDown || this.wasd.A.isDown) this.player.body.setVelocityX(-playerSpeed);
         if (this.cursors.right.isDown || this.wasd.D.isDown) this.player.body.setVelocityX(playerSpeed);
         if (this.cursors.up.isDown || this.wasd.W.isDown) this.player.body.setVelocityY(-playerSpeed);
@@ -319,6 +354,130 @@ export default class GameScene extends Phaser.Scene {
         if (this.health < 1) {
             this.health = Math.min(1, this.health + 0.0001); // Regenerate health slowly
             this.updateHealthBar();
+        }
+    }
+    endGame(isWinner) {
+        if (this._ended) return;
+        this._ended = true;
+        this.gameOver = true;
+
+        if (this.networkMoveEvent) {
+            this.networkMoveEvent.remove(false);
+            this.networkMoveEvent = null;
+        }
+
+        try { if (this.input && this.input.keyboard) this.input.keyboard.enabled = false; } catch (e) {}
+
+        const W = this.cameras.main.width;
+        const H = this.cameras.main.height;
+
+        // Dim background
+        const overlay = this.add.graphics({ depth: 1001 });
+        overlay.fillStyle(0x000000, 0.6);
+        overlay.fillRect(0, 0, W, H);
+
+        const txt = isWinner ? 'You Win' : 'You Lose';
+        this.add.text(W / 2, H / 2 - 60, txt, {
+            fontFamily: 'Arial',
+            fontSize: '48px',
+            color: '#ffffff'
+        }).setOrigin(0.5).setDepth(1002);
+
+        this.add.text(W / 2, H / 2 - 18, 'Refresh to play again', {
+            fontFamily: 'Arial',
+            fontSize: '18px',
+            color: '#cccccc'
+        }).setOrigin(0.5).setDepth(1002);
+
+        // Play Again button
+        const playAgain = this.add.text(W / 2, H / 2 + 20, 'Play Again', {
+            fontFamily: 'Arial',
+            fontSize: '28px',
+            color: '#00ff00',
+            backgroundColor: '#222222'
+        }).setOrigin(0.5).setDepth(1002).setPadding(10).setInteractive({ useHandCursor: true });
+
+        // Back to Menu button
+        const backBtn = this.add.text(W / 2, H / 2 + 70, 'Back to Menu', {
+            fontFamily: 'Arial',
+            fontSize: '20px',
+            color: '#ffffff',
+            backgroundColor: '#333333'
+        }).setOrigin(0.5).setDepth(1002).setPadding(8).setInteractive({ useHandCursor: true });
+
+        playAgain.on('pointerup', () => {
+            if (this.localRequestedRematch) return;
+            this.localRequestedRematch = true;
+
+            if (window.isMultiplayer) {
+                Network.send({ type: 'rematch_request' });
+
+                // If opponent already requested, accept immediately
+                if (this.opponentRequestedRematch) {
+                    Network.send({ type: 'rematch_accept' });
+                    this.resetForRematch();
+                    return;
+                }
+
+                playAgain.setText('Waiting for opponent...');
+                playAgain.disableInteractive();
+                playAgain.setStyle({ backgroundColor: '#444444' });
+            } else {
+                // single player: restart immediately
+                this.resetForRematch();
+            }
+        });
+
+        backBtn.on('pointerdown', () => {
+            if (window.isMultiplayer) {
+                Network.send({ type: 'return_to_menu' });
+            }
+            // change this to your menu scene key if different
+            this.scene.start('TitleScene');
+        });
+
+        // store references if needed
+        this._playAgainButton = playAgain;
+        this._backButton = backBtn;
+
+        // If opponent had already requested before UI created, reflect it
+        if (this.opponentRequestedRematch && this._playAgainButton) {
+            this._playAgainButton.setStyle({ backgroundColor: '#00aa00' });
+        }
+    }
+
+    resetForRematch() {
+        // Remove any overlay UI created for end screen / rematch
+        if (this._playAgainButton) this._playAgainButton.destroy();
+        if (this._backButton) this._backButton.destroy();
+        if (this._rematchOfferUI) {
+            this._rematchOfferUI.offerTxt.destroy();
+            this._rematchOfferUI.acceptBtn.destroy();
+        }
+        this.gameOver = false;
+        this.localRequestedRematch = false;
+        this.opponentRequestedRematch = false;
+        this._ended = false;
+
+        // re-enable input before restarting so the new scene has keyboard active
+        try { if (this.input && this.input.keyboard) this.input.keyboard.enabled = true; } catch (e) {}
+
+        // restart the scene - keeps the same network connection
+        this.scene.restart();
+    }
+
+    onOpponentDisconnected() {
+        // If game hasn't ended, present an end state indicating disconnect
+        if (!this._ended) {
+            this.endGame(true);
+        }
+        // Update the end UI to indicate opponent left (if play again button was waiting)
+        if (this._playAgainButton) {
+            this._playAgainButton.setText('Play Again (opponent disconnected)');
+            this._playAgainButton.setInteractive(); // allow local restart even if disconnected
+            // Clicking will restart locally (no opponent)
+            this._playAgainButton.off('pointerup');
+            this._playAgainButton.on('pointerup', () => this.resetForRematch());
         }
     }
 }
