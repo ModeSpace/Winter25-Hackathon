@@ -209,6 +209,7 @@ export default class GameScene extends Phaser.Scene {
 
     spawnSnowball(x, y, multiplier, velocity) {
         const ball = this.add.image(x, y, 'snowball1').setScale(multiplier);
+        ball.radius = (ball.displayWidth || (16 * multiplier)) / 2;
         this.physics.add.existing(ball);
         ball.body.setCollideWorldBounds(true);
         ball.body.onWorldBounds = true;
@@ -224,6 +225,7 @@ export default class GameScene extends Phaser.Scene {
 
     spawnOpponentSnowball({ x, y, multiplier, velocity }) {
         const ball = this.add.image(x,y,'snowball2').setScale(multiplier); // Different color
+        ball.radius = (ball.displayWidth || (16 * multiplier)) / 2;
         this.physics.add.existing(ball);
         ball.body.setCollideWorldBounds(true);
         ball.body.onWorldBounds = true;
@@ -238,7 +240,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerHit(player, snowball) {
-        const damage = snowball.radius / 200; // Damage based on snowball size
+        const damage = snowball.radius / 50; // Damage based on snowball size
+        console.log('Hit! Damage:', damage);
         this.health = Math.max(0, this.health - damage);
         this.updateHealthBar();
         snowball.destroy(); // Remove the snowball after collision
