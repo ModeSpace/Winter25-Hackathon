@@ -13,14 +13,15 @@ export default class GameScene extends Phaser.Scene {
             const idx = String(i).padStart(3, '0');
             this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
         }
-        this.load.image('snowball1', 'Assests/snowball/snowball-1.png');
-        this.load.image('snowball2', 'Assests/snowball/snowball-2.png');
+        this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
+        this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
     }
 
     create() {
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
-        const SIZE = 50;
+        const thickness = 16;
+        const g = this.add.graphics();
         this.mySnowballs = this.physics.add.group();
 
         const makeFrames = (start, end) => {
@@ -32,7 +33,24 @@ export default class GameScene extends Phaser.Scene {
         this.anims.create({ key: 'walk-left', frames: makeFrames(12, 15), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'walk-right', frames: makeFrames(4, 7), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'walk-up', frames: makeFrames(8, 11), frameRate: 8, repeat: -1 });
+        // Border setup
 
+        g.lineStyle(6, 0xffffff, 1);
+        g.strokeRect(thickness / 2, thickness / 2, W - thickness, H - thickness);
+        this.add.circle(W / 2, H / 2, 6, 0xffffff);
+
+        this.walls = this.add.group();
+        const makeWall = (x, y, w, h) => {
+            const rect = this.add.rectangle(x, y, w, h, 0x6666ff).setOrigin(0.5);
+            this.physics.add.existing(rect, true);
+            this.walls.add(rect);
+            return rect;
+        }
+        makeWall(W / 2, thickness / 2, W - thickness, thickness); // top
+        makeWall(W / 2, H - thickness / 2, W - thickness, thickness); // bottom
+        makeWall(thickness / 2, H / 2, thickness, H - thickness); // left
+        makeWall(W - thickness / 2, H / 2, thickness, H - thickness); // right
+        this.centerWall = makeWall(W / 2, H / 2, W - thickness, thickness);
         // Player setup
         if (window.isMultiplayer) {
             const player1Y = H * 0.8;
@@ -45,8 +63,10 @@ export default class GameScene extends Phaser.Scene {
             this.opponent = this.createPlayer(W / 2, opponentY);
             this.setupNetwork();
         } else {
-            this.player = this.createPlayer(W / 2, H / 2);
+            this.player = this.createPlayer(W / 2, H * 0.8);
         }
+
+
 
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
@@ -124,9 +144,13 @@ export default class GameScene extends Phaser.Scene {
         const player = this.add.sprite(x, y, 'player0');
         player.setOrigin(0.5, 0.5);
         this.physics.add.existing(player);
-        player.body.setCollideWorldBounds(true);
+        player.body.setCollideWorldBounds(false);
         player.body.setSize(50, 50);
         player.lastDir = 'down';
+        this.physics.add.collider(player, this.centerWall);
+        this.walls.getChildren().forEach((w) => {
+            this.physics.add.collider(player, w);
+        });
         return player;
     }
 
