@@ -11,13 +11,20 @@ export default class TitleScene extends Phaser.Scene {
         this.load.image('hostIcon', 'Assests/menu_buttons/host-button.png');
         this.load.image('joinIcon', 'Assests/menu_buttons/join-button.png');
     }
-    create() {
+
+    async create() {
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
         if(window.useCamera === undefined) window.useCamera = true;
-
+        try {
+            await document.fonts.load('font');
+            console.log("Fonts loaded");
+            await document.fonts.ready;
+        } catch (e) {
+            await document.fonts.ready;
+        }
         this.add.text(W / 2, 100, 'Snowball Thrower', { font: '48px Arial', fill: '#ffffff' }).setOrigin(0.5);
-        
+
 -       this.add.image(W, H, 'titleBg').setOrigin(0, 0);
         this.add.image(0, 0, 'titleBg').setOrigin(0, 0);
 
@@ -47,11 +54,11 @@ export default class TitleScene extends Phaser.Scene {
         hostBtn.on('pointerout', () => hostBtn.clearTint());
         hostBtn.on('pointerdown',
             () => {
-            this.add.text(W/2 - 260, 380 - 140, "Generating ID...", { font: '20px Arial', fill: '#ffff00' }).setOrigin(0.5);
+            this.add.text(W/2 - 260, 380 - 140, "Generating ID...", { font: 'font', fontSize: '32px', fill: '#ffff00' }).setOrigin(0.5);
 
             Network.hostGame((id) => {
                 // When we get an ID, show it and wait
-                this.add.text(W/2 - 265, 380 - 140, `Your Room ID: ${id}`, { font: '24px Arial', fill: '#00ff00', backgroundColor: '#000' }).setOrigin(0.5);
+                this.add.text(W/2 - 265, 380 - 140, `Your Room ID: ${id}`, { font: 'font', fontSize: '32px', fill: '#00ff00', backgroundColor: '#000' }).setOrigin(0.5);
                 this.add.text(W/2 - 260, 400 - 140, "Share this ID with a friend & wait...", { font: '16px Arial', fill: '#000000ff' }).setOrigin(0.5);
 
                 // Start game automatically when someone connects

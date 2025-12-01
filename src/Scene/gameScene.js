@@ -145,7 +145,8 @@ export default class GameScene extends Phaser.Scene {
         player.setOrigin(0.5, 0.5);
         this.physics.add.existing(player);
         player.body.setCollideWorldBounds(false);
-        player.body.setSize(50, 50);
+        player.body.setSize(80 * 0.8, 80 * 0.8);
+        player.setScale(0.8);
         player.lastDir = 'down';
         this.physics.add.collider(player, this.centerWall);
         this.walls.getChildren().forEach((w) => {
