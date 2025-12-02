@@ -1,6 +1,7 @@
 import GameScene from './Scene/gameScene.js';
 import TitleScene from "./Scene/titleScene.js";
 import SettingsScene from "./Scene/settingsScene.js";
+import ReadyScene from "./Scene/readyScene.js";
 
 const config = {
     pixelArt: true,
@@ -14,7 +15,7 @@ const config = {
     physics: {
         default: 'arcade'
     },
-    scene: [ TitleScene, GameScene, SettingsScene ]
+    scene: [ TitleScene, GameScene, SettingsScene, ReadyScene ]
 };
 
 new Phaser.Game(config);

@@ -16,6 +16,9 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
     }
+    init(data) {
+        this.startCountdown = data ? data.startCountdown : false;
+    }
 
     create() {
         const W = this.cameras.main.width;
@@ -135,6 +138,10 @@ export default class GameScene extends Phaser.Scene {
                 }
             });
         }
+        this.controlsEnabled = !this.startCountdown;
+        if (this.startCountdown) {
+            this.runCountdown();
+        }
     }
 
     createPlayer(x, y) {
@@ -151,7 +158,43 @@ export default class GameScene extends Phaser.Scene {
         });
         return player;
     }
+    runCountdown() {
+        const W = this.cameras.main.width;
+        const H = this.cameras.main.height;
+        const countdownText = this.add.text(W / 2, H / 2, '3', {
+            fontFamily: 'Arial', fontSize: '128px', color: '#ff0000',
+            stroke: '#000000', strokeThickness: 8
+        }).setOrigin(0.5).setDepth(2000);
 
+        const animateNumber = (number) => {
+            countdownText.setText(number);
+            countdownText.setScale(1.5);
+            this.tweens.add({
+                targets: countdownText,
+                scale: 1,
+                duration: 300,
+                ease: 'Power2'
+            });
+        };
+
+        this.time.delayedCall(1000, () => animateNumber('2'));
+        this.time.delayedCall(2000, () => animateNumber('1'));
+        this.time.delayedCall(3000, () => {
+            countdownText.setText('GO!');
+            this.tweens.add({
+                targets: countdownText,
+                scale: 1,
+                duration: 300,
+                ease: 'Power2',
+                onComplete: () => {
+                    countdownText.destroy();
+                    this.controlsEnabled = true;
+                }
+            });
+        });
+
+        animateNumber('3');
+    }
     setupNetwork() {
         Network.setDataHandler((data) => {
             if (!this.opponent) return;
@@ -212,7 +255,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     throwSnowball(power, wrist) {
-        if(this.gameOver) return;
+        if(this.gameOver || !this.controlsEnabled) return;
         const multiplier = 1 + this.charge * 4;
         const px = this.player.x;
         const py = this.player.y;
@@ -288,6 +331,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerInput() {
+        if (!this.controlsEnabled) {
+            this.player.body.setVelocity(0);
+            return;
+        }
         const playerSpeed = 200;
         this.player.body.setVelocity(0);
         if (this.gameOver) {

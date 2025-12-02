@@ -44,7 +44,7 @@ export default class TitleScene extends Phaser.Scene {
         playBtn.on('pointerdown',
             () => {
             window.isMultiplayer = false;
-            this.scene.start('GameScene');
+            this.scene.start('ReadyScene');
         });
 
         // --- HOST GAME ---
@@ -73,7 +73,7 @@ export default class TitleScene extends Phaser.Scene {
                         if(Network.isConnected()) {
                             window.isMultiplayer = true;
                             window.isHost = true; // We are player 1
-                            this.scene.start('GameScene');
+                            this.scene.start('ReadyScene');
                         }
                     }});
             });
@@ -92,7 +92,7 @@ export default class TitleScene extends Phaser.Scene {
                 Network.joinGame(hostId, () => {
                     window.isMultiplayer = true;
                     window.isHost = false; // We are player 2
-                    this.scene.start('GameScene');
+                    this.scene.start('ReadyScene');
                 });
             }
         });
