@@ -15,6 +15,8 @@ export default class GameScene extends Phaser.Scene {
         }
         this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
+        this.load.image('background', 'Assests/background/snowy-ground.png');
+        this.load.image('snowMound', 'Assests/wall/snow-mound.png');
     }
     init(data) {
         this.startCountdown = data ? data.startCountdown : false;
@@ -54,6 +56,14 @@ export default class GameScene extends Phaser.Scene {
         makeWall(thickness / 2, H / 2, thickness, H - thickness); // left
         makeWall(W - thickness / 2, H / 2, thickness, H - thickness); // right
         this.centerWall = makeWall(W / 2, H / 2, W - thickness, thickness);
+
+        //make snowy background
+        const bg = this.add.tileSprite(W / 2, H / 2, W - thickness, H - thickness, 'background');
+        bg.setDepth(-1);
+
+        // add snow mounds (random obstacles and deletes snowballs on collision)
+    
+
         // Player setup
         if (window.isMultiplayer) {
             const player1Y = H * 0.8;
