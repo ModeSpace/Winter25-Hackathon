@@ -32,6 +32,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this.gameOver = false;
+        this.localRequestedRematch = false;
+        this.opponentRequestedRematch = false;
+        this._ended = false;
+        this.aiHealth = 1;
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
         const thickness = 16;
@@ -169,7 +174,7 @@ export default class GameScene extends Phaser.Scene {
         }
         this.controlsEnabled = !this.startCountdown;
         if (this.startCountdown) {
-            this.runCountdown();
+            this.time.delayedCall(50, () => this.runCountdown());
         }
     }
 
@@ -190,25 +195,27 @@ export default class GameScene extends Phaser.Scene {
     runCountdown() {
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
-        const countdownText = this.add.text(W / 2, H / 2, '3', {
+
+        const countdownText = this.add.text(W / 2, H / 2, '', {
             fontFamily: 'Arial', fontSize: '128px', color: '#ff0000',
             stroke: '#000000', strokeThickness: 8
         }).setOrigin(0.5).setDepth(2000);
 
-        const animateNumber = (number) => {
-            countdownText.setText(number);
-            countdownText.setScale(1.5);
-            this.tweens.add({
-                targets: countdownText,
-                scale: 1,
-                duration: 300,
-                ease: 'Power2'
-            });
-        };
-
-        this.time.delayedCall(1000, () => animateNumber('2'));
-        this.time.delayedCall(2000, () => animateNumber('1'));
-        this.time.delayedCall(3000, () => {
+        let count = 3;
+        countdownText.setScale(1.5);
+        const tick = () => {
+            if (count > 0) {
+                countdownText.setText(String(count));
+                countdownText.setScale(1.5);
+                this.tweens.add({
+                    targets: countdownText,
+                    scale: 1,
+                    duration: 300,
+                    ease: 'Power2'
+                });
+                count--;
+                return;
+            }
             countdownText.setText('GO!');
             this.tweens.add({
                 targets: countdownText,
@@ -220,9 +227,16 @@ export default class GameScene extends Phaser.Scene {
                     this.controlsEnabled = true;
                 }
             });
-        });
+        };
 
-        animateNumber('3');
+        // run first tick immediately (already delayed a bit above), then every 1000ms
+        tick();
+        this.time.addEvent({
+            delay: 1000,
+            callback: tick,
+            callbackScope: this,
+            repeat: 2 // will run two more times (for 3->2->1) then the final GO is handled in tick
+        });
     }
     handleAiHit(opponent, snowball) {
         snowball.destroy();
@@ -394,6 +408,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerInput() {
+        console.log(this.controlsEnabled);
+        console.log(this.gameOver);
         if (!this.controlsEnabled) {
             this.player.body.setVelocity(0);
             return;
@@ -483,18 +499,20 @@ export default class GameScene extends Phaser.Scene {
         this._ended = true;
         this.gameOver = true;
 
+        // Record who won so rematch / next-level logic can use it later
+        this._lastWinner = isWinner;
+
         if (this.networkMoveEvent) {
             this.networkMoveEvent.remove(false);
             this.networkMoveEvent = null;
         }
 
-        try { if (this.input && this.input.keyboard) this.input.keyboard.enabled = false; } catch (e) {}
 
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
-        //Reset velcoity of both players to 0
-        this.player.body.setVelocity(0);
-        this.opponent.body.setVelocity(0);
+        // Reset velocity of both players to 0
+        if (this.player && this.player.body) this.player.body.setVelocity(0);
+        if (this.opponent && this.opponent.body) this.opponent.body.setVelocity(0);
 
         // Dim background
         const overlay = this.add.graphics({ depth: 1001 });
@@ -513,19 +531,19 @@ export default class GameScene extends Phaser.Scene {
             fontSize: '18px',
             color: '#cccccc'
         }).setOrigin(0.5).setDepth(1002);
+
         let playText = 'Play Again';
         if (!window.isMultiplayer) {
             if (isWinner && this.level < 10) playText = 'Next Level';
             else if (isWinner && this.level >= 10) playText = 'Max Level - Rematch';
             else playText = 'Retry Level';
         }
+
         // Play Again button
         const playAgain = this.add.text(W / 2, H / 2 + 20, playText, {
             fontFamily: 'Arial', fontSize: '28px', color: '#00ff00',
             backgroundColor: '#222222'
         }).setOrigin(0.5).setDepth(1002).setPadding(10).setInteractive({ useHandCursor: true });
-
-
 
         // Back to Menu button
         const backBtn = this.add.text(W / 2, H / 2 + 70, 'Back to Menu', {
@@ -562,7 +580,6 @@ export default class GameScene extends Phaser.Scene {
                     // retry same level (or reset to 1 if desired)
                     nextLevel = this.level || 1;
                 }
-
                 // restart scene with updated level and a short countdown
                 this.scene.restart({ startCountdown: true, level: nextLevel });
             }
@@ -598,9 +615,6 @@ export default class GameScene extends Phaser.Scene {
         this.localRequestedRematch = false;
         this.opponentRequestedRematch = false;
         this._ended = false;
-
-        // re-enable input before restarting so the new scene has keyboard active
-        try { if (this.input && this.input.keyboard) this.input.keyboard.enabled = true; } catch (e) {}
 
         // restart the scene - keeps the same network connection
         this.scene.restart();
