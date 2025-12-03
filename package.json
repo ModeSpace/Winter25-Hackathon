@@ -16,7 +16,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "http-server ./ -p 8000 -c-1",
-    "dev": "http-server ./ -p 8000 -c-1"
+    "dev": "http-server ./ -p 8000 -c-1",
+    "predeploy": "npm run build"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
