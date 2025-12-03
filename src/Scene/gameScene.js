@@ -1,5 +1,6 @@
 import { createHandLandmarker, detectThrow, setOnThrow, setOnLandmarks } from '../handTracker.js';
 import { Network } from '../network.js';
+import { AiController } from "../aiController.js";
 
 var cooldown = 10;
 
@@ -67,10 +68,19 @@ export default class GameScene extends Phaser.Scene {
             this.setupNetwork();
         } else {
             this.player = this.createPlayer(W / 2, H * 0.8);
+            this.opponent = this.createPlayer(W / 2, H * 0.2);
+            const padding = 10;
+            const aiBounds = { minX: thickness + padding, maxX: W - thickness - padding };
+            this.aiController = new AiController(this, this.opponent, this.player, aiBounds);
+            this.aiController.onShootRequest = (targetX, targetY) => {
+                const velocity = 260;
+                const multiplier = 1;
+                this.spawnAiSnowball(this.opponent.x, this.opponent.y, multiplier, velocity);
+            };
+            this.physics.add.overlap(this.opponent, this.mySnowballs, (opponent, snowball) => {
+                this.handleAiHit(opponent, snowball);
+            }, null, this);
         }
-
-
-
         this.cursors = this.input.keyboard.createCursorKeys();
         this.wasd = this.input.keyboard.addKeys('W,A,S,D');
         this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
@@ -195,6 +205,19 @@ export default class GameScene extends Phaser.Scene {
 
         animateNumber('3');
     }
+    handleAiHit(opponent, snowball) {
+        snowball.destroy();
+
+        // Optional: track AI health and end game when AI dies
+        if (!this.aiHealth) this.aiHealth = 1;
+        const damage = snowball.radius / 50;
+        this.aiHealth = Math.max(0, this.aiHealth - damage);
+
+        if (this.aiHealth <= 0 && !this.gameOver) {
+            this.gameOver = true;
+            this.endGame(true); // player wins
+        }
+    }
     setupNetwork() {
         Network.setDataHandler((data) => {
             if (!this.opponent) return;
@@ -253,6 +276,26 @@ export default class GameScene extends Phaser.Scene {
         });
 
     }
+    spawnAiSnowball(x, y, multiplier, velocity) {
+        if(this.gameOver || !this.controlsEnabled) return;
+        const ball = this.add.image(x, y, 'snowball2').setScale(multiplier);
+        ball.radius = (ball.displayWidth || (16 * multiplier)) / 2;
+        this.physics.add.existing(ball);
+        ball.body.setCollideWorldBounds(true);
+        ball.body.onWorldBounds = true;
+
+        // AI is at top and should throw downwards (positive Y)
+        const direction = 1;
+        ball.body.setVelocity(0, velocity * direction);
+        ball.intendedVelocityY = velocity * direction;
+
+        ball.body.world.on('worldbounds', (body) => {
+            if (body.gameObject === ball) ball.destroy();
+        });
+
+        this.opponentSnowballs.add(ball);
+    }
+
 
     throwSnowball(power, wrist) {
         if(this.gameOver || !this.controlsEnabled) return;
@@ -293,6 +336,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     spawnOpponentSnowball({ x, y, multiplier, velocity }) {
+        if(this.gameOver || !this.controlsEnabled) return;
         const ball = this.add.image(x,y,'snowball2').setScale(multiplier); // Different color
         ball.radius = (ball.displayWidth || (16 * multiplier)) / 2;
         this.physics.add.existing(ball);
@@ -310,7 +354,7 @@ export default class GameScene extends Phaser.Scene {
 
     handlePlayerHit(player, snowball) {
         const damage = snowball.radius / 50; // Damage based on snowball size
-        this.health = this.health - 1;
+        this.health = this.health - damage;
         this.updateHealthBar();
         snowball.destroy(); // Remove the snowball after collision
         if (this.health <= 0 && !this.gameOver) {
@@ -402,6 +446,18 @@ export default class GameScene extends Phaser.Scene {
             this.health = Math.min(1, this.health + 0.0001); // Regenerate health slowly
             this.updateHealthBar();
         }
+        if (this.aiController && this.controlsEnabled && !this.gameOver) {
+            const activeSnowballs = this.mySnowballs ? this.mySnowballs.getChildren() : [];
+            const time = this.time.now;
+            const delta = this.game.loop.delta;
+            this.aiController.update(time, delta, activeSnowballs);
+            this.updatePlayerAnimation(
+                this.opponent,
+                this.opponent.body.velocity.x,
+                this.opponent.body.velocity.y,
+                this.opponent.lastDir
+            );
+        }
     }
     endGame(isWinner) {
         if (this._ended) return;
@@ -417,6 +473,9 @@ export default class GameScene extends Phaser.Scene {
 
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
+        //Reset velcoity of both players to 0
+        this.player.body.setVelocity(0);
+        this.opponent.body.setVelocity(0);
 
         // Dim background
         const overlay = this.add.graphics({ depth: 1001 });
@@ -527,4 +586,5 @@ export default class GameScene extends Phaser.Scene {
             this._playAgainButton.on('pointerup', () => this.resetForRematch());
         }
     }
+
 }
