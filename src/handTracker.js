@@ -1,7 +1,7 @@
-// File: `src/handTracker.js`
 import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
 let handLandmarker = undefined;
+let createPromise = null;
 let lastWristX = 0;
 let lastWristY = 0;
 let isThrowing = false;
@@ -14,22 +14,75 @@ let onLandmarks = null;
 
 export function setOnThrow(fn) { onThrow = fn; }
 export function setOnLandmarks(fn) { onLandmarks = fn; }
+export function isHandLandmarkerReady() { return !!handLandmarker; }
 
 export const createHandLandmarker = async () => {
-    const visionGen = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
-    );
+    // Return existing instance if already created
+    if (handLandmarker) return handLandmarker;
 
-    handLandmarker = await HandLandmarker.createFromOptions(visionGen, {
-        baseOptions: {
-            modelAssetPath:
-                "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-            delegate: "GPU",
-        },
-        runningMode: "VIDEO",
-        numHands: 1,
-    });
+    // If creation is already in progress, await the same promise
+    if (createPromise) return createPromise;
+
+    createPromise = (async () => {
+        const visionGen = await FilesetResolver.forVisionTasks(
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+        );
+
+        // If another caller managed to set handLandmarker while awaiting, return it
+        if (handLandmarker) {
+            createPromise = null;
+            return handLandmarker;
+        }
+
+        handLandmarker = await HandLandmarker.createFromOptions(visionGen, {
+            baseOptions: {
+                modelAssetPath:
+                    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                delegate: "GPU",
+            },
+            runningMode: "VIDEO",
+            numHands: 1,
+        });
+
+        createPromise = null;
+        return handLandmarker;
+    })();
+
+    return createPromise;
 };
+
+export async function destroyHandLandmarker() {
+    // Wait for any ongoing creation to finish so we can cleanly close it
+    if (createPromise) {
+        try { await createPromise; } catch (e) { /* ignore */ }
+    }
+
+    if (handLandmarker) {
+        // close() is used by mediapipe tasks-vision objects; call if available
+        try {
+            if (typeof handLandmarker.close === "function") {
+                handLandmarker.close();
+            } else if (typeof handLandmarker.dispose === "function") {
+                handLandmarker.dispose();
+            }
+        } catch (e) {
+            // swallow errors to avoid crashing teardown
+            console.warn("Error closing handLandmarker:", e);
+        }
+    }
+
+    handLandmarker = undefined;
+    createPromise = null;
+
+    // Reset tracking state
+    lastWristX = 0;
+    lastWristY = 0;
+    isThrowing = false;
+    cooldown = 0;
+    positionHistory = [];
+    onThrow = null;
+    onLandmarks = null;
+}
 
 export function detectThrow(videoInput) {
     if (!handLandmarker) return;
