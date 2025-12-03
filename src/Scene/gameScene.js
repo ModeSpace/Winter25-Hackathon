@@ -21,6 +21,14 @@ export default class GameScene extends Phaser.Scene {
     }
     init(data) {
         this.startCountdown = data ? data.startCountdown : false;
+
+        if (!window.isMultiplayer) {
+            this.level = (data && typeof data.level === 'number') ? data.level : 1;
+            // clamp just in case
+            this.level = Math.max(1, Math.min(10, this.level));
+        } else {
+            this.level = 0; // multiplayer doesn't use levels
+        }
     }
 
     create() {
@@ -81,7 +89,8 @@ export default class GameScene extends Phaser.Scene {
             this.opponent = this.createPlayer(W / 2, H * 0.2);
             const padding = 10;
             const aiBounds = { minX: thickness + padding, maxX: W - thickness - padding };
-            this.aiController = new AiController(this, this.opponent, this.player, aiBounds);
+            this.aiController = new AiController(this, this.opponent, this.player, aiBounds, this.level);
+            this.aiController.level = this.level;
             this.aiController.onShootRequest = (targetX, targetY) => {
                 const velocity = 260;
                 const multiplier = 1;
@@ -504,14 +513,19 @@ export default class GameScene extends Phaser.Scene {
             fontSize: '18px',
             color: '#cccccc'
         }).setOrigin(0.5).setDepth(1002);
-
+        let playText = 'Play Again';
+        if (!window.isMultiplayer) {
+            if (isWinner && this.level < 10) playText = 'Next Level';
+            else if (isWinner && this.level >= 10) playText = 'Max Level - Rematch';
+            else playText = 'Retry Level';
+        }
         // Play Again button
-        const playAgain = this.add.text(W / 2, H / 2 + 20, 'Play Again', {
-            fontFamily: 'Arial',
-            fontSize: '28px',
-            color: '#00ff00',
+        const playAgain = this.add.text(W / 2, H / 2 + 20, playText, {
+            fontFamily: 'Arial', fontSize: '28px', color: '#00ff00',
             backgroundColor: '#222222'
         }).setOrigin(0.5).setDepth(1002).setPadding(10).setInteractive({ useHandCursor: true });
+
+
 
         // Back to Menu button
         const backBtn = this.add.text(W / 2, H / 2 + 70, 'Back to Menu', {
@@ -540,7 +554,17 @@ export default class GameScene extends Phaser.Scene {
                 playAgain.setStyle({ backgroundColor: '#444444' });
             } else {
                 // single player: restart immediately
-                this.resetForRematch();
+                let nextLevel;
+                if (this._lastWinner) {
+                    // advance up to max 10; when at max wrap to 1
+                    nextLevel = Math.min(10, (this.level || 1) + 1);
+                } else {
+                    // retry same level (or reset to 1 if desired)
+                    nextLevel = this.level || 1;
+                }
+
+                // restart scene with updated level and a short countdown
+                this.scene.restart({ startCountdown: true, level: nextLevel });
             }
         });
 

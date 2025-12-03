@@ -1,5 +1,5 @@
 export class AiController {
-    constructor(scene, aiSprite, humanSprite, bounds = null) {
+    constructor(scene, aiSprite, humanSprite, bounds = null, level) {
         this.scene = scene;
         this.me = aiSprite;
         this.target = humanSprite;
@@ -25,35 +25,105 @@ export class AiController {
         this.isCharging = false;
         this.chargeStartTime = 0;
 
-        this.setDifficulty('medium');
+        this.setDifficulty(level);
     }
 
     setDifficulty(level) {
         this.level = level;
         switch (level) {
-            case 'easy':
+            case 1: // Baby: Barely moves, terrible aim, forgets to shoot
+                this.reactionSpeed = 2000;
+                this.moveSpeed = 50;
+                this.aimError = 300;
+                this.throwCooldownRange = [4000, 6000];
+                this.dodgeDistance = 40;
+                this.chargeTime = [1200, 1800]; // slow, long charge (ms)
+                break;
+
+            case 2: // Toddler: Slow, very inaccurate
+                this.reactionSpeed = 1500;
+                this.moveSpeed = 80;
+                this.aimError = 200;
+                this.throwCooldownRange = [3000, 5000];
+                this.dodgeDistance = 80;
+                this.chargeTime = [1000, 1600];
+                break;
+
+            case 3: // Beginner (Old Easy): Predictable
                 this.reactionSpeed = 1000;
                 this.moveSpeed = 100;
                 this.aimError = 150;
                 this.throwCooldownRange = [2000, 3500];
                 this.dodgeDistance = 100;
-                this.chargeTime = [200, 500]; // short charges
+                this.chargeTime = [900, 1400];
                 break;
-            case 'medium':
+
+            case 4: // Novice: Starting to try
+                this.reactionSpeed = 800;
+                this.moveSpeed = 140;
+                this.aimError = 100;
+                this.throwCooldownRange = [1500, 3000];
+                this.dodgeDistance = 180;
+                this.chargeTime = [700, 1100];
+                break;
+
+            case 5: // Intermediate (Old Medium): Standard opponent
                 this.reactionSpeed = 500;
                 this.moveSpeed = 180;
                 this.aimError = 60;
                 this.throwCooldownRange = [1000, 2000];
                 this.dodgeDistance = 250;
-                this.chargeTime = [400, 1000];
+                this.chargeTime = [600, 1000];
                 break;
-            case 'hard':
-                this.reactionSpeed = 150;
-                this.moveSpeed = 280;
-                this.aimError = 10;
-                this.throwCooldownRange = [500, 1200];
-                this.dodgeDistance = 400;
-                this.chargeTime = [800, 1500]; // long charges for powerful shots
+
+            case 6: // Advanced: Competent, reacts decently
+                this.reactionSpeed = 400;
+                this.moveSpeed = 220;
+                this.aimError = 40;
+                this.throwCooldownRange = [800, 1800];
+                this.dodgeDistance = 300;
+                this.chargeTime = [500, 900];
+                break;
+
+            case 7: // Pro (Old Hard): Aggressive
+                this.reactionSpeed = 300;
+                this.moveSpeed = 260;
+                this.aimError = 25;
+                this.throwCooldownRange = [600, 1400];
+                this.dodgeDistance = 350;
+                this.chargeTime = [400, 800];
+                break;
+
+            case 8: // Elite: Very fast, precise
+                this.reactionSpeed = 200;
+                this.moveSpeed = 300;
+                this.aimError = 15;
+                this.throwCooldownRange = [500, 1000];
+                this.dodgeDistance = 450;
+                this.chargeTime = [300, 700];
+                break;
+
+            case 9: // God Mode: Almost perfect
+                this.reactionSpeed = 100;
+                this.moveSpeed = 350;
+                this.aimError = 5;
+                this.throwCooldownRange = [300, 700];
+                this.dodgeDistance = 600;
+                this.chargeTime = [200, 500];
+                break;
+
+            case 10: // Impossible: Machine-like perfection
+                this.reactionSpeed = 50; // Instantly reacts
+                this.moveSpeed = 450; // Faster than player
+                this.aimError = 0; // Perfect aim
+                this.throwCooldownRange = [100, 400]; // Machine gun
+                this.dodgeDistance = 1000; // Sees entire screen
+                this.chargeTime = [80, 250];
+                break;
+
+            default:
+                console.warn("Unknown difficulty level, defaulting to Medium (5)");
+                this.setDifficulty(5);
                 break;
         }
     }
