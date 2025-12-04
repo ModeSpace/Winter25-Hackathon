@@ -17,7 +17,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
         this.load.image('background', 'Assests/background/snowy-ground.png');
-        this.load.image('snowMound', 'Assests/wall/snow-mound.png');
+        this.load.image('snowWall', 'Assests/wall/snow-wall.png');
     }
     init(data) {
         this.startCountdown = data ? data.startCountdown : false;
@@ -60,7 +60,9 @@ export default class GameScene extends Phaser.Scene {
 
         this.walls = this.add.group();
         const makeWall = (x, y, w, h) => {
-            const rect = this.add.rectangle(x, y, w, h, 0x6666ff).setOrigin(0.5);
+            const rect = this.add.sprite(x, y, 'snowWall');
+            rect.displayWidth = w;
+            rect.displayHeight = h;
             this.physics.add.existing(rect, true);
             this.walls.add(rect);
             return rect;
