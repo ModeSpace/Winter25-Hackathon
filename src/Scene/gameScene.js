@@ -19,13 +19,12 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('background', 'Assests/background/snowy-ground.png');
         this.load.image('snowWall', 'Assests/wall/snow-wall.png');
     }
+
     init(data) {
         this.startCountdown = data ? data.startCountdown : false;
 
         if (!window.isMultiplayer) {
             this.level = (data && typeof data.level === 'number') ? data.level : 1;
-            // clamp just in case
-            this.level = Math.max(1, Math.min(10, this.level));
         } else {
             this.level = 0; // multiplayer doesn't use levels
         }
@@ -132,15 +131,37 @@ export default class GameScene extends Phaser.Scene {
                 snowball.destroy();
             }, null, this);
         }
-
+        //Level Counter
+        if (!window.isMultiplayer) {
+            this.add.text(W - 20, 20, `Level: ${this.level}`, {
+                fontFamily: 'font',
+                fontSize: '48px',
+                fill: '#e0f7fa',
+                stroke: '#0d47a1',
+                strokeThickness: 6,
+                shadow: { offsetX: 4, offsetY: 4, color: '#000000', blur: 4, stroke: true, fill: true }
+            }).setOrigin(1, 0).setDepth(2000);
+        }
         this.opponentSnowballs = this.physics.add.group({});
         this.physics.add.overlap(this.player, this.opponentSnowballs, this.handlePlayerHit, null, this);
 
         this.video = document.getElementById('webcam');
+        this.videoFlipped = false;
         if (window.useCamera) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+            navigator.mediaDevices.getUserMedia({video: {facingMode: 'user'}, audio: false})
                 .then((stream) => {
                     this.video.srcObject = stream;
+
+                    // Detect actual facing mode and only visually flip preview for front cameras
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track && track.getSettings ? track.getSettings() : {};
+                    if (settings.facingMode === 'user' || settings.facingMode === undefined) {
+                        this.video.style.transform = 'scaleX(-1)';
+                        this.videoFlipped = true;
+                    } else {
+                        this.videoFlipped = false;
+                    }
+
                     return this.video.play();
                 })
                 .catch((err) => console.warn('Webcam error:', err));
@@ -154,17 +175,23 @@ export default class GameScene extends Phaser.Scene {
             });
 
             createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
+
+            // Mirror wrist X for throws when preview is flipped so game uses consistent coords
             setOnThrow((power, wrist) => {
+                const usedWrist = (this.videoFlipped && wrist) ? {x: 1 - wrist.x, y: wrist.y} : wrist;
                 if (this.qKey.isDown) {
                     this.charge = Math.min(this.charge + ((0.1) * power) / 20, 1);
                     this.updateChargeBar();
                 } else {
-                    this.throwSnowball(power, wrist);
+                    this.throwSnowball(power, usedWrist);
                 }
             });
+
             this.latest = null;
-            setOnLandmarks((data) => { this.latest = data; });
-            this.overlay = this.add.graphics({ depth: 1000 });
+            setOnLandmarks((data) => {
+                this.latest = data;
+            });
+            this.overlay = this.add.graphics({depth: 1000});
         } else {
             this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
             this.spaceKey.on('down', () => {
@@ -413,8 +440,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerInput() {
-        console.log(this.controlsEnabled);
-        console.log(this.gameOver);
         if (!this.controlsEnabled) {
             this.player.body.setVelocity(0);
             return;
@@ -476,8 +501,13 @@ export default class GameScene extends Phaser.Scene {
                 const W = this.cameras.main.width;
                 const H = this.cameras.main.height;
                 const { wrist, elbow } = this.latest;
-                const wristX = wrist.x * W; const wristY = wrist.y * H;
-                const elbowX = elbow.x * W; const elbowY = elbow.y * H;
+
+                // Mirror X for overlay if the preview is visually flipped
+                const wristX = ((this.videoFlipped && wrist) ? (1 - wrist.x) : wrist.x) * W;
+                const wristY = wrist.y * H;
+                const elbowX = ((this.videoFlipped && elbow) ? (1 - elbow.x) : elbow.x) * W;
+                const elbowY = elbow.y * H;
+
                 this.overlay.lineStyle(2, 0xffff00).strokeRect(wristX - 10, wristY - 10, 20, 20);
                 this.overlay.lineStyle(2, 0xff00ff).strokeRect(elbowX - 10, elbowY - 10, 20, 20);
             }
@@ -540,7 +570,6 @@ export default class GameScene extends Phaser.Scene {
         let playText = 'Play Again';
         if (!window.isMultiplayer) {
             if (isWinner && this.level < 10) playText = 'Next Level';
-            else if (isWinner && this.level >= 10) playText = 'Max Level - Rematch';
             else playText = 'Retry Level';
         }
 
@@ -557,7 +586,6 @@ export default class GameScene extends Phaser.Scene {
             color: '#ffffff',
             backgroundColor: '#333333'
         }).setOrigin(0.5).setDepth(1002).setPadding(8).setInteractive({ useHandCursor: true });
-
         playAgain.on('pointerup', () => {
             if (this.localRequestedRematch) return;
             this.localRequestedRematch = true;
@@ -580,10 +608,10 @@ export default class GameScene extends Phaser.Scene {
                 let nextLevel;
                 if (this._lastWinner) {
                     // advance up to max 10; when at max wrap to 1
-                    nextLevel = Math.min(10, (this.level || 1) + 1);
+                    nextLevel = this.level + 1;
                 } else {
                     // retry same level (or reset to 1 if desired)
-                    nextLevel = this.level || 1;
+                    nextLevel = this.level;
                 }
                 // restart scene with updated level and a short countdown
                 this.scene.restart({ startCountdown: true, level: nextLevel });
