@@ -141,10 +141,22 @@ export default class GameScene extends Phaser.Scene {
         this.physics.add.overlap(this.player, this.opponentSnowballs, this.handlePlayerHit, null, this);
 
         this.video = document.getElementById('webcam');
+        this.videoFlipped = false;
         if (window.useCamera) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+            navigator.mediaDevices.getUserMedia({video: {facingMode: 'user'}, audio: false})
                 .then((stream) => {
                     this.video.srcObject = stream;
+
+                    // Detect actual facing mode and only visually flip preview for front cameras
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track && track.getSettings ? track.getSettings() : {};
+                    if (settings.facingMode === 'user' || settings.facingMode === undefined) {
+                        this.video.style.transform = 'scaleX(-1)';
+                        this.videoFlipped = true;
+                    } else {
+                        this.videoFlipped = false;
+                    }
+
                     return this.video.play();
                 })
                 .catch((err) => console.warn('Webcam error:', err));
@@ -158,17 +170,23 @@ export default class GameScene extends Phaser.Scene {
             });
 
             createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
+
+            // Mirror wrist X for throws when preview is flipped so game uses consistent coords
             setOnThrow((power, wrist) => {
+                const usedWrist = (this.videoFlipped && wrist) ? {x: 1 - wrist.x, y: wrist.y} : wrist;
                 if (this.qKey.isDown) {
                     this.charge = Math.min(this.charge + ((0.1) * power) / 20, 1);
                     this.updateChargeBar();
                 } else {
-                    this.throwSnowball(power, wrist);
+                    this.throwSnowball(power, usedWrist);
                 }
             });
+
             this.latest = null;
-            setOnLandmarks((data) => { this.latest = data; });
-            this.overlay = this.add.graphics({ depth: 1000 });
+            setOnLandmarks((data) => {
+                this.latest = data;
+            });
+            this.overlay = this.add.graphics({depth: 1000});
         } else {
             this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
             this.spaceKey.on('down', () => {
@@ -478,8 +496,13 @@ export default class GameScene extends Phaser.Scene {
                 const W = this.cameras.main.width;
                 const H = this.cameras.main.height;
                 const { wrist, elbow } = this.latest;
-                const wristX = wrist.x * W; const wristY = wrist.y * H;
-                const elbowX = elbow.x * W; const elbowY = elbow.y * H;
+
+                // Mirror X for overlay if the preview is visually flipped
+                const wristX = ((this.videoFlipped && wrist) ? (1 - wrist.x) : wrist.x) * W;
+                const wristY = wrist.y * H;
+                const elbowX = ((this.videoFlipped && elbow) ? (1 - elbow.x) : elbow.x) * W;
+                const elbowY = elbow.y * H;
+
                 this.overlay.lineStyle(2, 0xffff00).strokeRect(wristX - 10, wristY - 10, 20, 20);
                 this.overlay.lineStyle(2, 0xff00ff).strokeRect(elbowX - 10, elbowY - 10, 20, 20);
             }
