@@ -15,6 +15,8 @@ export default class GameScene extends Phaser.Scene {
             const idx = String(i).padStart(3, '0');
             this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
         }
+        // wrist marker: replace with the attached image file (put the file at this path)
+        this.load.image('wristMarker', 'Assests/markers/wrist-custom.png');
         this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
         this.load.image('background', 'Assests/background/snowy-ground.png');
@@ -84,9 +86,6 @@ export default class GameScene extends Phaser.Scene {
         //make snowy background
         const bg = this.add.tileSprite(W / 2, H / 2, W - thickness, H - thickness, 'background');
         bg.setDepth(-1);
-
-        // add snow mounds (random obstacles and deletes snowballs on collision)
-    
 
         // Player setup
         if (window.isMultiplayer) {
