@@ -19,13 +19,12 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('background', 'Assests/background/snowy-ground.png');
         this.load.image('snowMound', 'Assests/wall/snow-mound.png');
     }
+
     init(data) {
         this.startCountdown = data ? data.startCountdown : false;
 
         if (!window.isMultiplayer) {
             this.level = (data && typeof data.level === 'number') ? data.level : 1;
-            // clamp just in case
-            this.level = Math.max(1, Math.min(10, this.level));
         } else {
             this.level = 0; // multiplayer doesn't use levels
         }
@@ -127,7 +126,17 @@ export default class GameScene extends Phaser.Scene {
                 snowball.destroy();
             }, null, this);
         }
-
+        //Level Counter
+        if (!window.isMultiplayer) {
+            this.add.text(W - 20, 20, `Level: ${this.level}`, {
+                fontFamily: 'font',
+                fontSize: '48px',
+                fill: '#e0f7fa',
+                stroke: '#0d47a1',
+                strokeThickness: 6,
+                shadow: { offsetX: 4, offsetY: 4, color: '#000000', blur: 4, stroke: true, fill: true }
+            }).setOrigin(1, 0).setDepth(2000);
+        }
         this.opponentSnowballs = this.physics.add.group({});
         this.physics.add.overlap(this.player, this.opponentSnowballs, this.handlePlayerHit, null, this);
 
@@ -408,8 +417,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerInput() {
-        console.log(this.controlsEnabled);
-        console.log(this.gameOver);
         if (!this.controlsEnabled) {
             this.player.body.setVelocity(0);
             return;
@@ -535,7 +542,6 @@ export default class GameScene extends Phaser.Scene {
         let playText = 'Play Again';
         if (!window.isMultiplayer) {
             if (isWinner && this.level < 10) playText = 'Next Level';
-            else if (isWinner && this.level >= 10) playText = 'Max Level - Rematch';
             else playText = 'Retry Level';
         }
 
@@ -552,7 +558,6 @@ export default class GameScene extends Phaser.Scene {
             color: '#ffffff',
             backgroundColor: '#333333'
         }).setOrigin(0.5).setDepth(1002).setPadding(8).setInteractive({ useHandCursor: true });
-
         playAgain.on('pointerup', () => {
             if (this.localRequestedRematch) return;
             this.localRequestedRematch = true;
@@ -575,10 +580,10 @@ export default class GameScene extends Phaser.Scene {
                 let nextLevel;
                 if (this._lastWinner) {
                     // advance up to max 10; when at max wrap to 1
-                    nextLevel = Math.min(10, (this.level || 1) + 1);
+                    nextLevel = this.level + 1;
                 } else {
                     // retry same level (or reset to 1 if desired)
-                    nextLevel = this.level || 1;
+                    nextLevel = this.level;
                 }
                 // restart scene with updated level and a short countdown
                 this.scene.restart({ startCountdown: true, level: nextLevel });

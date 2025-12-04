@@ -1,3 +1,4 @@
+// javascript
 import { createHandLandmarker, detectThrow, setOnLandmarks } from '../handTracker.js';
 import { Network } from '../network.js';
 
@@ -30,6 +31,7 @@ export default class ReadyScene extends Phaser.Scene {
             objectFit: 'cover',
             zIndex: 100
         });
+        this.videoFlipped = false; // track whether we visually flipped the video
         this.overlay = this.add.graphics({depth: 1000});
         const p1Text = this.add.text(W / 2 - 80, 420, 'P1 (You)', {fontSize: '24px', color: '#fff'}).setOrigin(0.5);
         const p2Text = this.add.text(W / 2 + 80, 420, 'P2', {fontSize: '24px', color: '#fff'}).setOrigin(0.5);
@@ -43,9 +45,20 @@ export default class ReadyScene extends Phaser.Scene {
     initCameraAndHandTracking() {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
             .then((stream) => {
-            this.video.srcObject = stream;
-            this.video.play();
-        }).catch((err) => console.error('Webcam error:', err));
+                this.video.srcObject = stream;
+                this.video.play();
+
+                // Detect actual track facing mode and only flip visually if it's a front camera
+                const track = stream.getVideoTracks()[0];
+                const settings = track.getSettings ? track.getSettings() : {};
+                if (settings.facingMode === 'user' || settings.facingMode === undefined) {
+                    this.video.style.transform = 'scaleX(-1)';
+                    this.videoFlipped = true;
+                } else {
+                    this.videoFlipped = false;
+                }
+            }).catch((err) => console.error('Webcam error:', err));
+
         createHandLandmarker().catch(e => console.warn('HandLandmarker init failed', e));
 
         setOnLandmarks((data) => {
@@ -55,8 +68,11 @@ export default class ReadyScene extends Phaser.Scene {
             if (isReady) {
                 const { wrist, elbow } = data;
                 const w = 320, h = 240;
-                const handX = wrist.x * w;
+
+                // Mirror X when the video is visually flipped so overlay matches preview
+                const handX = (this.videoFlipped ? (1 - wrist.x) : wrist.x) * w;
                 const handY = wrist.y * h;
+
                 const videoLeft = (this.cameras.main.width - w) / 2;
                 const videoTop = 150;
 
