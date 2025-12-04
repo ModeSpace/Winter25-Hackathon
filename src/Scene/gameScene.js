@@ -18,6 +18,8 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
         this.load.image('background', 'Assests/background/snowy-ground.png');
         this.load.image('snowWall', 'Assests/wall/snow-wall.png');
+        this.load.image('hpBar', 'Assests/bars/health_bar.png');
+        this.load.image('chargeBar', 'Assests/bars/energy-bar.png');
     }
 
     init(data) {
@@ -114,13 +116,17 @@ export default class GameScene extends Phaser.Scene {
         this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
 
         //Charge bar
-        this.chargeBarBg = this.add.rectangle(W - 100, H - 30, 84, 20, 0x333333).setOrigin(0, 0.5);
-        this.chargeBar = this.add.rectangle(W - 98, H - 30, 0, 16, 0x00ff00).setOrigin(0, 0.5);
+        this.chargeBarOverlay = this.add.image(W - 75, H - 29, 'chargeBar').setOrigin(0.5).setScale(4);
+        this.chargeBarOverlay.depth = 1000;
+        this.chargeBarBg = this.add.rectangle(W - 98, H - 28, 87, 20, 0x333333).setOrigin(0, 0.5);
+        this.chargeBar = this.add.rectangle(W - 98, H - 28, 0, 16, 0x00ff00).setOrigin(0, 0.5);
         this.charge = 0;
 
         //Health bar
-        this.healthBarBg = this.add.rectangle(10, 10, 204, 24, 0x333333).setOrigin(0, 0);
-        this.healthBar = this.add.rectangle(12, 12, 200, 20, 0xff0000).setOrigin(0, 0);
+        this.healthBarOverlay = this.add.image(80, 30, 'hpBar').setScale(5);
+        this.healthBarOverlay.depth = 1000;
+        this.healthBarBg = this.add.rectangle(10, 20, 144, 24, 0x333333).setOrigin(0, 0);
+        this.healthBar = this.add.rectangle(12, 22, 140, 20, 0xff0000).setOrigin(0, 0);
         this.health = 1;
         this.gameOver = false;
         this.networkMoveEvent = null;
@@ -418,7 +424,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     handlePlayerHit(player, snowball) {
-        const damage = snowball.radius / 50; // Damage based on snowball size
+        const damage = snowball.radius / 65; // Damage based on snowball size
         this.health = this.health - damage;
         this.updateHealthBar();
         snowball.destroy(); // Remove the snowball after collision
@@ -432,7 +438,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     updateHealthBar() {
-        this.healthBar.width = this.health * 200;
+        this.healthBar.width = this.health * 140;
     }
 
     updateChargeBar() {
