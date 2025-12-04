@@ -388,7 +388,7 @@ export default class GameScene extends Phaser.Scene {
         this.spawnSnowball(px, py, multiplier, velocity);
 
         if (window.isMultiplayer) {
-            Network.sendImmediate({
+            Network.send({
                 type: 'throw',
                 x: px,
                 y: py,
