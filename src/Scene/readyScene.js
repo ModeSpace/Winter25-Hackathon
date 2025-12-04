@@ -1,4 +1,3 @@
-import MouseTracker from '../mouseTracker.js';
 import { Network } from '../network.js';
 
 export default class ReadyScene extends Phaser.Scene {
@@ -48,9 +47,16 @@ export default class ReadyScene extends Phaser.Scene {
     }
 
     initMouseFlickTracking() {
-        this.mouseTracker = new MouseTracker(this, {
-            onFlick: () => {
-                if (!this.localReady) {
+        const W = this.cameras.main.width;
+
+
+        let count = 3;
+        this.time.addEvent({
+            delay: 1000,
+            repeat: 2,
+            callback: () => {
+                count--;
+                if (count <= 0) {
                     this.localReady = true;
                     this.p1Check.setVisible(true);
                     if (window.isMultiplayer) {
@@ -58,11 +64,7 @@ export default class ReadyScene extends Phaser.Scene {
                     }
                     this.checkAllReady();
                 }
-            },
-            canTrigger: () => !this.localReady,
-            sampleWindowMs: 150,
-            speedThresholdPxPerMs: 0.3,
-            cooldownMs: 500
+            }
         });
     }
 
