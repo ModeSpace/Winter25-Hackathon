@@ -18,7 +18,7 @@ export default class GameScene extends Phaser.Scene {
         this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
         this.load.image('background', 'Assests/background/snowy-ground.png');
-        this.load.image('snowMound', 'Assests/wall/snow-mound.png');
+        this.load.image('snowWall', 'Assests/wall/snow-wall.png');
     }
 
     init(data) {
@@ -39,7 +39,7 @@ export default class GameScene extends Phaser.Scene {
         this.aiHealth = 1;
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
-        const thickness = 16;
+        const thickness = 64;
         const g = this.add.graphics();
         this.mySnowballs = this.physics.add.group();
 
@@ -59,17 +59,22 @@ export default class GameScene extends Phaser.Scene {
         this.add.circle(W / 2, H / 2, 6, 0xffffff);
 
         this.walls = this.add.group();
-        const makeWall = (x, y, w, h) => {
-            const rect = this.add.rectangle(x, y, w, h, 0x6666ff).setOrigin(0.5);
+        const makeWall = (x, y, w, h, side) => {
+            const rect = this.add.sprite(x, y, 'snowWall');
+            rect.displayWidth = w;
+            rect.displayHeight = h;
+            if (side === 1) rect.angle = 90;
+            if (side === 2) rect.angle = -90;
+            if (side === 3) rect.angle = 180;
             this.physics.add.existing(rect, true);
             this.walls.add(rect);
             return rect;
         }
-        makeWall(W / 2, thickness / 2, W - thickness, thickness); // top
-        makeWall(W / 2, H - thickness / 2, W - thickness, thickness); // bottom
-        makeWall(thickness / 2, H / 2, thickness, H - thickness); // left
-        makeWall(W - thickness / 2, H / 2, thickness, H - thickness); // right
-        this.centerWall = makeWall(W / 2, H / 2, W - thickness, thickness);
+        makeWall(W / 2, thickness / 2, W , thickness, 3); // top
+        makeWall(W / 2, H - thickness / 2, W , thickness, 0); // bottom
+        makeWall(thickness / 2, H / 2, H , thickness, 1); // left
+        makeWall(W - thickness / 2, H / 2, H , thickness, 2); // right
+        this.centerWall = makeWall(W / 2 - 3, H / 2, W - thickness - 25, thickness);
 
         //make snowy background
         const bg = this.add.tileSprite(W / 2, H / 2, W - thickness, H - thickness, 'background');
