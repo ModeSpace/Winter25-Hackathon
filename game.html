@@ -4,18 +4,13 @@
     <meta charset="utf-8" />
     <title>Snowball Game</title>
     <link rel="stylesheet" href="styles/game.css">
-
-    <style>
-        body { margin: 0; }
-        #game-container { width: 800px; height: 600px; margin: 0 auto; }
-        /* hide the webcam element but keep it playing */
-        #webcam { display: none; }
-    </style>
 </head>
 <body>
-<div id="game-container"></div>
+<div id="game-wrapper">
+    <div id="game-container"></div>
+</div>
 <div class="fontload" style="font-family: 'font',system-ui;">.</div>
-<video id="webcam" autoplay playsinline muted></video>
+<video id="webcam" autoplay playsinline muted style="display: none;"></video>
 
 <!-- Phaser (global) -->
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>

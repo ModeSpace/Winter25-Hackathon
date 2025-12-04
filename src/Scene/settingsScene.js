@@ -16,7 +16,7 @@ export default class SettingsScene extends Phaser.Scene {
 
         // Toggle button for controls
         if (window.useCamera === undefined) window.useCamera = true;
-        const toggleText = window.useCamera ? 'Controls: Camera' : 'Controls: Mouse/Space';
+        const toggleText = window.useCamera ? 'Controls: Camera' : 'Controls: Mouse';
         const toggleButton = this.add.text(W / 2, H / 2, toggleText, {
             font: '32px Arial',
             fill: '#ffffff',
@@ -26,7 +26,7 @@ export default class SettingsScene extends Phaser.Scene {
 
         toggleButton.on('pointerdown', () => {
             window.useCamera = !window.useCamera;
-            toggleButton.setText(window.useCamera ? 'Controls: Camera' : 'Controls: Mouse/Space');
+            toggleButton.setText(window.useCamera ? 'Controls: Camera' : 'Controls: Mouse');
         });
 
         // Back button
