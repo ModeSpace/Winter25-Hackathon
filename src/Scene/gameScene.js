@@ -1,6 +1,7 @@
 import { createHandLandmarker, detectThrow, setOnThrow, setOnLandmarks } from '../handTracker.js';
 import { Network } from '../network.js';
 import { AiController } from "../aiController.js";
+import MouseTracker from "../mouseTracker.js";
 
 var cooldown = 10;
 
@@ -199,15 +200,21 @@ export default class GameScene extends Phaser.Scene {
             });
             this.overlay = this.add.graphics({depth: 1000});
         } else {
-            this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-            this.spaceKey.on('down', () => {
-                if (this.qKey.isDown) {
-                    this.charge = Math.min(this.charge + 0.1, 1);
+            const handleFlick = ({ power, wrist, qDown }) => {
+                if (qDown) {
+                    this.charge = Math.min(this.charge + (power / 200) * 0.1, 1);
                     this.updateChargeBar();
-                } else if (cooldown <= 0) {
-                    cooldown = 40;
-                    this.throwSnowball(20, { x: 0.5, y: 0.5 });
+                    return;
                 }
+                cooldown = 40;
+                this.throwSnowball(power, wrist);
+            };
+
+            this.mouseTracker = new MouseTracker(this, {
+                onFlick: handleFlick,
+                getQDown: () => !!this.qKey?.isDown,
+                getVideoFlipped: () => !!this.videoFlipped,
+                canTrigger: () => cooldown <= 0
             });
         }
         this.controlsEnabled = !this.startCountdown;
