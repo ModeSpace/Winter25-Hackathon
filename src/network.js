@@ -3,6 +3,7 @@ let peer = null;
 let conn = null;
 let onDataCallback = null;
 let onDisconnectCallback = null;
+let sendInterval = 50;
 
 export const Network = {
     // 1. Initialize as Host

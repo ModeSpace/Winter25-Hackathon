@@ -39,6 +39,9 @@ export default class GameScene extends Phaser.Scene {
         this.opponentRequestedRematch = false;
         this._ended = false;
         this.aiHealth = 1;
+        this.opponentTargetX = 0;
+        this.opponentTargetY = 0;
+        this.interpolationSpeed = 0.2;
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
         const thickness = 64;
@@ -302,7 +305,8 @@ export default class GameScene extends Phaser.Scene {
 
             switch (data.type) {
                 case 'move':
-                    this.opponent.setPosition(data.x, data.y);
+                    this.opponentTargetX = data.x;
+                    this.opponentTargetY = data.y;
                     this.updatePlayerAnimation(this.opponent, data.velX, data.velY, data.lastDir);
                     break;
                 case 'throw':
@@ -385,7 +389,7 @@ export default class GameScene extends Phaser.Scene {
         this.spawnSnowball(px, py, multiplier, velocity);
 
         if (window.isMultiplayer) {
-            Network.send({
+            Network.sendImmediate({
                 type: 'throw',
                 x: px,
                 y: py,
@@ -502,6 +506,10 @@ export default class GameScene extends Phaser.Scene {
                 ball.body.setVelocity(0, ball.intendedVelocityY);
             }
         });
+        if (this.opponent && window.isMultiplayer) {
+            this.opponent.x += (this.opponentTargetX - this.opponent.x) * this.interpolationSpeed;
+            this.opponent.y += (this.opponentTargetY - this.opponent.y) * this.interpolationSpeed;
+        }
         this.mySnowballs.getChildren().forEach(ball => {
             if (ball.body) {
                 ball.body.setVelocity(0, ball.intendedVelocityY);
@@ -574,15 +582,9 @@ export default class GameScene extends Phaser.Scene {
             color: '#ffffff'
         }).setOrigin(0.5).setDepth(1002);
 
-        this.add.text(W / 2, H / 2 - 18, 'Refresh to play again', {
-            fontFamily: 'Arial',
-            fontSize: '18px',
-            color: '#cccccc'
-        }).setOrigin(0.5).setDepth(1002);
-
         let playText = 'Play Again';
         if (!window.isMultiplayer) {
-            if (isWinner && this.level < 10) playText = 'Next Level';
+            if (isWinner) playText = 'Next Level';
             else playText = 'Retry Level';
         }
 
