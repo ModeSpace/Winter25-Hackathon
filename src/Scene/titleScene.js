@@ -5,11 +5,11 @@ export default class TitleScene extends Phaser.Scene {
         super({ key: 'TitleScene' });
     }
     preload() {
-        this.load.image('titleBg', 'Assests/background/Title_back.png');
-        this.load.image('settingsIcon', 'Assests/menu_buttons/setting-button.png');
-        this.load.image('playIcon', 'Assests/menu_buttons/start-button.png');
-        this.load.image('hostIcon', 'Assests/menu_buttons/host-button.png');
-        this.load.image('joinIcon', 'Assests/menu_buttons/join-button.png');
+        this.load.image('titleBg', 'Assets/background/Title_back.png');
+        this.load.image('settingsIcon', 'Assets/menu_buttons/setting-button.png');
+        this.load.image('playIcon', 'Assets/menu_buttons/start-button.png');
+        this.load.image('hostIcon', 'Assets/menu_buttons/host-button.png');
+        this.load.image('joinIcon', 'Assets/menu_buttons/join-button.png');
     }
 
     async create() {

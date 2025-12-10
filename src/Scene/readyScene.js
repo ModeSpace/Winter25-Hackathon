@@ -6,7 +6,7 @@ export default class ReadyScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('check', 'Assests/menu_buttons/check.png');
+        this.load.image('check', 'Assets/menu_buttons/check.png');
     }
 
     create() {

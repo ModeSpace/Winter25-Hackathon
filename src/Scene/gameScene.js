@@ -16,13 +16,13 @@ export default class GameScene extends Phaser.Scene {
             this.load.image(`player${i}`, `Assests/first-character/${i}_elf-sprite.png`);
         }
         // wrist marker: replace with the attached image file (put the file at this path)
-        this.load.image('wristMarker', 'Assests/hand-throw.png');
-        this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
-        this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
-        this.load.image('background', 'Assests/background/snowy-ground.png');
-        this.load.image('snowWall', 'Assests/wall/snow-wall.png');
-        this.load.image('hpBar', 'Assests/bars/health_bar.png');
-        this.load.image('chargeBar', 'Assests/bars/energy-bar.png');
+        this.load.image('wristMarker', 'Assets/markers/wrist-custom.png');
+        this.load.image('snowball1', 'Assets/snowball/Snowball-1.png');
+        this.load.image('snowball2', 'Assets/snowball/Snowball-2.png');
+        this.load.image('background', 'Assets/background/snowy-ground.png');
+        this.load.image('snowWall', 'Assets/wall/snow-wall.png');
+        this.load.image('hpBar', 'Assets/bars/health_bar.png');
+        this.load.image('chargeBar', 'Assets/bars/energy-bar.png');
     }
 
     init(data) {
