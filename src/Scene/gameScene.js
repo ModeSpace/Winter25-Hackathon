@@ -551,6 +551,18 @@ export default class GameScene extends Phaser.Scene {
                 this.overlay.lineStyle(2, 0xffff00).strokeRect(wristX - 10, wristY - 10, 20, 20);
                 this.overlay.lineStyle(2, 0xff00ff).strokeRect(elbowX - 10, elbowY - 10, 20, 20);
             }
+            const thickness = 64;
+            const W = this.cameras.main.width;
+            const halfW = this.player.body.width / 2;
+
+            if (this.player.x - halfW < thickness) {
+                this.player.x = thickness + halfW;
+                this.player.body.setVelocityX(0);
+            }
+            if (this.player.x + halfW > W - thickness) {
+                this.player.x = W - thickness - halfW;
+                this.player.body.setVelocityX(0);
+            }
         }
         if (this.health < 1) {
             this.health = Math.min(1, this.health + 0.0001); // Regenerate health slowly
@@ -567,6 +579,18 @@ export default class GameScene extends Phaser.Scene {
                 this.opponent.body.velocity.y,
                 this.opponent.lastDir
             );
+        }
+        const thickness = 64;
+        const W = this.cameras.main.width;
+        const halfW = this.player.body.width / 2;
+
+        if (this.player.x - halfW < thickness) {
+            this.player.x = thickness + halfW;
+            this.player.body.setVelocityX(0);
+        }
+        if (this.player.x + halfW > W - thickness) {
+            this.player.x = W - thickness - halfW;
+            this.player.body.setVelocityX(0);
         }
     }
     endGame(isWinner) {
