@@ -15,8 +15,9 @@ export default class GameScene extends Phaser.Scene {
             const idx = String(i).padStart(3, '0');
             this.load.image(`player${i}`, `Assets/first-character/${i}_elf-sprite.png`);
         }
-        // wrist marker: replace with the attached image file (put the file at this path)
-        this.load.image('wristMarker', 'Assets/markers/wrist-custom.png');
+        this.load.audio('bgm', 'Music/christmas-background.mp3');
+        this.load.audio('throw', 'Music/throw.mp3');
+        this.load.audio('hit', 'Music/snowball-hit.mp3');
         this.load.image('snowball1', 'Assets/snowball/Snowball-1.png');
         this.load.image('snowball2', 'Assets/snowball/Snowball-2.png');
         this.load.image('background', 'Assets/background/snowy-ground.png');
@@ -36,6 +37,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this.sound.add('bgm').play({ loop: true, volume: 0.5 });
         this.gameOver = false;
         this.localRequestedRematch = false;
         this.opponentRequestedRematch = false;
@@ -91,6 +93,13 @@ export default class GameScene extends Phaser.Scene {
         //make snowy background
         const bg = this.add.tileSprite(W / 2, H / 2, W - thickness, H - thickness, 'background');
         bg.setDepth(-1);
+
+        //make sound sfx
+
+        this.sfx = {
+            throw: this.sound.add('throw', { volume: 0.5 }),
+            hit: this.sound.add('hit', { volume: 2 })
+        };
 
         // Player setup
         if (window.isMultiplayer) {
@@ -291,6 +300,7 @@ export default class GameScene extends Phaser.Scene {
         });
     }
     handleAiHit(opponent, snowball) {
+        this.sfx.hit.play();
         snowball.destroy();
 
         // Optional: track AI health and end game when AI dies
@@ -380,6 +390,7 @@ export default class GameScene extends Phaser.Scene {
         });
 
         this.opponentSnowballs.add(ball);
+        this.sfx.throw.play();
     }
 
 
@@ -419,6 +430,7 @@ export default class GameScene extends Phaser.Scene {
         });
         this.mySnowballs.add(ball);
         ball.intendedVelocityY = velocity * direction;
+        this.sfx.throw.play();
     }
 
     spawnOpponentSnowball({ x, y, multiplier, velocity }) {
@@ -436,6 +448,7 @@ export default class GameScene extends Phaser.Scene {
             if (body.gameObject === ball) ball.destroy();
         });
         this.opponentSnowballs.add(ball);
+        this.sfx.throw.play();
     }
 
     handlePlayerHit(player, snowball) {
@@ -443,6 +456,7 @@ export default class GameScene extends Phaser.Scene {
         this.health = this.health - damage;
         this.updateHealthBar();
         snowball.destroy(); // Remove the snowball after collision
+        this.sfx.hit.play();
         if (this.health <= 0 && !this.gameOver) {
             this.gameOver = true;
             if (window.isMultiplayer) {
