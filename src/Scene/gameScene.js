@@ -11,9 +11,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        for (let i = 0; i <= 15; i++) {
+        for (let i = 0; i <= 22; i++) {
             const idx = String(i).padStart(3, '0');
-            this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
+            this.load.image(`player${i}`, `Assests/first-character/${i}_elf-sprite.png`);
         }
         // wrist marker: replace with the attached image file (put the file at this path)
         this.load.image('wristMarker', 'Assests/hand-throw.png');
@@ -50,6 +50,9 @@ export default class GameScene extends Phaser.Scene {
         const g = this.add.graphics();
         this.mySnowballs = this.physics.add.group();
 
+        //scale player character
+        
+
         const makeFrames = (start, end) => {
             const out = [];
             for (let i = start; i <= end; i++) out.push({ key: `player${i}` });
@@ -59,6 +62,8 @@ export default class GameScene extends Phaser.Scene {
         this.anims.create({ key: 'walk-left', frames: makeFrames(12, 15), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'walk-right', frames: makeFrames(4, 7), frameRate: 8, repeat: -1 });
         this.anims.create({ key: 'walk-up', frames: makeFrames(8, 11), frameRate: 8, repeat: -1 });
+        this.anims.create({ key: 'snowball-throw-front', frames: makeFrames(17, 18), frameRate: 8, repeat: false });
+        this.anims.create({ key: 'snowball-throw-back', frames: makeFrames(21, 22), frameRate: 8, repeat: false });
         // Border setup
 
         g.lineStyle(6, 0xffffff, 1);
@@ -95,12 +100,12 @@ export default class GameScene extends Phaser.Scene {
             const myY = window.isHost ? player1Y : player2Y;
             const opponentY = window.isHost ? player2Y : player1Y;
 
-            this.player = this.createPlayer(W / 2, myY);
-            this.opponent = this.createPlayer(W / 2, opponentY);
+            this.player = this.createPlayer(W / 2, myY).setScale(2);
+            this.opponent = this.createPlayer(W / 2, opponentY).setScale(2);
             this.setupNetwork();
         } else {
-            this.player = this.createPlayer(W / 2, H * 0.8);
-            this.opponent = this.createPlayer(W / 2, H * 0.2);
+            this.player = this.createPlayer(W / 2, H * 0.8).setScale(2);
+            this.opponent = this.createPlayer(W / 2, H * 0.2).setScale(2);
             const padding = 10;
             const aiBounds = { minX: thickness + padding, maxX: W - thickness - padding };
             this.aiController = new AiController(this, this.opponent, this.player, aiBounds, this.level);
