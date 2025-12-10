@@ -13,7 +13,7 @@ export default class GameScene extends Phaser.Scene {
     preload() {
         for (let i = 0; i <= 22; i++) {
             const idx = String(i).padStart(3, '0');
-            this.load.image(`player${i}`, `Assests/first-character/${i}_elf-sprite.png`);
+            this.load.image(`player${i}`, `Assets/first-character/${i}_elf-sprite.png`);
         }
         // wrist marker: replace with the attached image file (put the file at this path)
         this.load.image('wristMarker', 'Assets/markers/wrist-custom.png');
