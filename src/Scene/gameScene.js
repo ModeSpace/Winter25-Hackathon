@@ -37,7 +37,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.sound.add('bgm').play({ loop: true, volume: 0.5 });
         this.gameOver = false;
         this.localRequestedRematch = false;
         this.opponentRequestedRematch = false;
@@ -53,8 +52,13 @@ export default class GameScene extends Phaser.Scene {
         this.mySnowballs = this.physics.add.group();
 
         //scale player character
-        
-
+        let bgm = this.sound.get('bgm');
+        if(!bgm){
+            bgm = this.sound.add('bgm', { loop: true, volume: 0.5 });
+        }
+        if(!bgm.isPlaying){
+            bgm.play();
+        }
         const makeFrames = (start, end) => {
             const out = [];
             for (let i = start; i <= end; i++) out.push({ key: `player${i}` });
