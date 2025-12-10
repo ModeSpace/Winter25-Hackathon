@@ -13,16 +13,16 @@ export default class GameScene extends Phaser.Scene {
     preload() {
         for (let i = 0; i <= 15; i++) {
             const idx = String(i).padStart(3, '0');
-            this.load.image(`player${i}`, `Assests/first-character/tile${idx}.png`);
+            this.load.image(`player${i}`, `Assets/first-character/tile${idx}.png`);
         }
         // wrist marker: replace with the attached image file (put the file at this path)
-        this.load.image('wristMarker', 'Assests/markers/wrist-custom.png');
-        this.load.image('snowball1', 'Assests/snowball/Snowball-1.png');
-        this.load.image('snowball2', 'Assests/snowball/Snowball-2.png');
-        this.load.image('background', 'Assests/background/snowy-ground.png');
-        this.load.image('snowWall', 'Assests/wall/snow-wall.png');
-        this.load.image('hpBar', 'Assests/bars/health_bar.png');
-        this.load.image('chargeBar', 'Assests/bars/energy-bar.png');
+        this.load.image('wristMarker', 'Assets/markers/wrist-custom.png');
+        this.load.image('snowball1', 'Assets/snowball/Snowball-1.png');
+        this.load.image('snowball2', 'Assets/snowball/Snowball-2.png');
+        this.load.image('background', 'Assets/background/snowy-ground.png');
+        this.load.image('snowWall', 'Assets/wall/snow-wall.png');
+        this.load.image('hpBar', 'Assets/bars/health_bar.png');
+        this.load.image('chargeBar', 'Assets/bars/energy-bar.png');
     }
 
     init(data) {
@@ -65,18 +65,19 @@ export default class GameScene extends Phaser.Scene {
         g.strokeRect(thickness / 2, thickness / 2, W - thickness, H - thickness);
         this.add.circle(W / 2, H / 2, 6, 0xffffff);
 
-        this.walls = this.add.group();
+        this.walls = this.physics.add.staticGroup();
         const makeWall = (x, y, w, h, side) => {
-            const rect = this.add.sprite(x, y, 'snowWall');
-            rect.displayWidth = w;
-            rect.displayHeight = h;
-            if (side === 1) rect.angle = 90;
-            if (side === 2) rect.angle = -90;
-            if (side === 3) rect.angle = 180;
-            this.physics.add.existing(rect, true);
+            // create a static physics image so the body is managed by Arcade Physics
+            const rect = this.physics.add.staticImage(x, y, 'snowWall');
+            rect.setDisplaySize(w, h);
+            if (side === 1) rect.setAngle(90);
+            if (side === 2) rect.setAngle(-90);
+            if (side === 3) rect.setAngle(180);
+            // refreshBody so the physics body matches the display size/rotation
+            rect.refreshBody();
             this.walls.add(rect);
             return rect;
-        }
+        };
         makeWall(W / 2, thickness / 2, W , thickness, 3); // top
         makeWall(W / 2, H - thickness / 2, W , thickness, 0); // bottom
         makeWall(thickness / 2, H / 2, H , thickness, 1); // left
@@ -495,6 +496,9 @@ export default class GameScene extends Phaser.Scene {
 
     update() {
         cooldown--;
+        const thickness = 64;
+        const W = this.cameras.main.width;
+        const halfW = this.player.body.width / 2;
         this.handlePlayerInput();
         this.updatePlayerAnimation(this.player, this.player.body.velocity.x, this.player.body.velocity.y, this.player.lastDir);
 
@@ -547,6 +551,14 @@ export default class GameScene extends Phaser.Scene {
                 this.opponent.body.velocity.y,
                 this.opponent.lastDir
             );
+        }
+        if (this.player.x - halfW < thickness) {
+            this.player.x = thickness + halfW;
+            this.player.body.setVelocityX(0);
+        }
+        if (this.player.x + halfW > W - thickness) {
+            this.player.x = W - thickness - halfW;
+            this.player.body.setVelocityX(0);
         }
     }
     endGame(isWinner) {
